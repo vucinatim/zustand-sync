@@ -4,9 +4,10 @@ import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import { RoomManager } from "./RoomManager";
+import { StoreApi } from "zustand";
 
 export type ServerConfig = {
-  initializer: (set: any, get: any) => any;
+  initializer: (set: any, get: any, store: StoreApi<any>) => any;
   debug?: {
     simulatedLatencyMs?: number;
   };

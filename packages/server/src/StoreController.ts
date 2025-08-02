@@ -15,7 +15,7 @@ export class StoreController<TState extends { actions: Record<string, any> }> {
   private connectedClients: Set<string> = new Set(); // NEW
 
   constructor(
-    initializer: (set: any, get: any) => TState,
+    initializer: (set: any, get: any, store: StoreApi<TState>) => TState,
     options?: Partial<ControllerOptions>
   ) {
     this.store = createStore(initializer);
