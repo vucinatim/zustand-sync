@@ -1,14 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/server/factory.ts (REVISED)
-
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import { StoreController } from "./StoreController";
+import { RoomManager } from "./RoomManager";
 
-// --- NEW ---
-// We've expanded the config to include an optional `debug` object.
 export type ServerConfig = {
   initializer: (set: any, get: any) => any;
   debug?: {
@@ -16,7 +12,6 @@ export type ServerConfig = {
   };
 };
 
-// This is the factory. It sets up and returns a ready-to-use server instance.
 export function createServer(config: ServerConfig) {
   const app = express();
   app.use(cors());
@@ -25,55 +20,72 @@ export function createServer(config: ServerConfig) {
     cors: { origin: "*" },
   });
 
-  // --- MODIFIED ---
-  // We now pass the latency setting from the config into the controller's constructor.
-  const roomController = new StoreController(config.initializer, {
+  const roomManager = new RoomManager(config.initializer, {
     simulatedLatencyMs: config.debug?.simulatedLatencyMs || 0,
   });
 
   io.on("connection", (socket) => {
     console.log(`Client connected: ${socket.id}`);
 
-    // This logic now needs to be async to handle the potential delay
-    const initializeClient = async () => {
+    // This is a standard pattern for associating data with a socket
+    socket.data.roomId = null;
+
+    socket.on("client:join_room", async (roomId: string) => {
+      console.log(`Client ${socket.id} attempting to join room ${roomId}`);
+      socket.data.roomId = roomId;
+      const roomController = roomManager.getOrCreateRoom(roomId);
+
+      await socket.join(roomId);
+      roomController.addClient(socket.id);
+
       const joinPatches = await roomController.dispatch(
         "addCharacter",
         [socket.id],
         socket.id
       );
-      socket.emit("initial_state", roomController.getState());
-      socket.broadcast.emit("patch", joinPatches);
-    };
-    initializeClient();
 
-    // --- MODIFIED ---
-    // The command dispatcher is now ASYNCHRONOUS to handle the delay.
+      socket.emit("server:initial_state", roomController.getState());
+      socket.to(roomId).emit("server:patch", joinPatches);
+    });
+
     socket.on(
-      "dispatch_command",
-      async (actionName: string, ...args: unknown[]) => {
+      "client:dispatch_command",
+      async (roomId: string, actionName: string, ...args: unknown[]) => {
+        const roomController = roomManager.getRoom(roomId);
+        if (!roomController) return;
+
         const patches = await roomController.dispatch(
           actionName,
           args,
           socket.id
         );
         if (patches.length > 0) {
-          console.log(
-            `Broadcasting ${patches.length} patches for action: ${actionName}`
-          );
-          io.emit("patch", patches);
+          io.to(roomId).emit("server:patch", patches);
         }
       }
     );
 
-    socket.on("disconnect", async () => {
+    socket.on("disconnect", () => {
       console.log(`Client disconnected: ${socket.id}`);
-      const leavePatches = await roomController.dispatch(
-        "removeCharacter",
-        [socket.id],
-        socket.id
-      );
-      if (leavePatches.length > 0) {
-        socket.broadcast.emit("patch", leavePatches);
+      const roomId = socket.data.roomId;
+      if (roomId) {
+        const roomController = roomManager.getRoom(roomId);
+        if (roomController) {
+          roomController.removeClient(socket.id);
+          const leavePatches = roomController.dispatchSync(
+            "removeCharacter",
+            [socket.id],
+            socket.id
+          );
+
+          if (leavePatches.length > 0) {
+            socket.to(roomId).emit("server:patch", leavePatches);
+          }
+
+          if (roomController.getClientCount() === 0) {
+            roomManager.cleanup(roomId);
+          }
+        }
       }
     });
   });

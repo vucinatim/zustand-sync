@@ -115,7 +115,7 @@ importers:
         specifier: ^10.1.1
         version: 10.1.1
       socket.io-client:
-        specifier: ^4.7.5
+        specifier: ^4.8.1
         version: 4.8.1
       zustand:
         specifier: ^4.5.2
@@ -135,7 +135,7 @@ importers:
         specifier: ^10.1.1
         version: 10.1.1
       socket.io:
-        specifier: ^4.7.5
+        specifier: ^4.8.1
         version: 4.8.1
       zustand:
         specifier: ^4.5.2

@@ -6,10 +6,8 @@ export type LocalState = {
   clientId: string | null;
 };
 
-// In the future, we would add other framework-level types here, for example:
-/*
-export interface PersistenceAdapter<TState> {
-  saveState(roomId: string, state: TState): Promise<void>;
-  loadState(roomId: string): Promise<TState | null>;
-}
-*/
+// NEW: The imperative API exposed on the store for connecting/disconnecting
+export type SyncedStoreApi = {
+  connect: (roomId: string) => void;
+  disconnect: () => void;
+};

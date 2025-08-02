@@ -1,30 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/server/StoreController.ts (REVISED)
-
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { produceWithPatches, enablePatches, type Patch } from "immer";
 
 enablePatches();
 
-// --- NEW ---
-type ControllerOptions = {
+export type ControllerOptions = {
   simulatedLatencyMs: number;
 };
 
 export class StoreController<TState extends { actions: Record<string, any> }> {
   private store: StoreApi<TState>;
   private lastPatches: Patch[] = [];
-  // --- NEW ---
   private options: ControllerOptions;
+  private connectedClients: Set<string> = new Set(); // NEW
 
   constructor(
     initializer: (set: any, get: any) => TState,
-    // --- MODIFIED ---
-    // The constructor now accepts options
     options?: Partial<ControllerOptions>
   ) {
     this.store = createStore(initializer);
-    this.options = { simulatedLatencyMs: 0, ...options }; // Set defaults
+    this.options = { simulatedLatencyMs: 0, ...options };
 
     this.store.subscribe((newState, prevState) => {
       const [, patches] = produceWithPatches(prevState, () => newState);
@@ -32,35 +27,52 @@ export class StoreController<TState extends { actions: Record<string, any> }> {
     });
   }
 
+  // --- NEW METHODS ---
+  public addClient(clientId: string): void {
+    this.connectedClients.add(clientId);
+  }
+
+  public removeClient(clientId: string): void {
+    this.connectedClients.delete(clientId);
+  }
+
+  public getClientCount(): number {
+    return this.connectedClients.size;
+  }
+  // --- END NEW METHODS ---
+
   public getState() {
     return this.store.getState();
   }
 
-  // --- MODIFIED ---
-  // The dispatch method is now ASYNCHRONOUS.
-  public async dispatch(
+  // NEW: Synchronous dispatch for internal server use (e.g., on-disconnect)
+  public dispatchSync(
     actionName: string,
     args: unknown[],
     senderId: string
-  ): Promise<Patch[]> {
-    // --- NEW ---
-    // Conditionally apply the delay if it's configured.
-    if (this.options.simulatedLatencyMs > 0) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, this.options.simulatedLatencyMs)
-      );
-    }
-
+  ): Patch[] {
     this.lastPatches = [];
-
     const actionToRun = this.store.getState().actions[actionName];
     if (!actionToRun) {
       console.warn(`Action "${actionName}" not found on server store.`);
       return [];
     }
-
     actionToRun(...args, senderId);
-
     return this.lastPatches;
+  }
+
+  // MODIFIED: This is the existing async dispatch for client commands
+  public async dispatch(
+    actionName: string,
+    args: unknown[],
+    senderId: string
+  ): Promise<Patch[]> {
+    if (this.options.simulatedLatencyMs > 0) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.options.simulatedLatencyMs)
+      );
+    }
+    // We can just call the synchronous version after the delay
+    return this.dispatchSync(actionName, args, senderId);
   }
 }
