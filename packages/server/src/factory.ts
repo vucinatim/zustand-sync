@@ -4,10 +4,13 @@ import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import { RoomManager } from "./RoomManager";
+import { StoreController } from "./StoreController";
 import { StoreApi } from "zustand";
 
 export type ServerConfig = {
   initializer: (set: any, get: any, store: StoreApi<any>) => any;
+  serverTick?: (storeController: StoreController<any>) => void;
+  serverTickRate?: number;
   debug?: {
     simulatedLatencyMs?: number;
   };
@@ -21,14 +24,15 @@ export function createServer(config: ServerConfig) {
     cors: { origin: "*" },
   });
 
-  const roomManager = new RoomManager(config.initializer, {
+  // THE FIX: Pass the `io` instance to the RoomManager
+  const roomManager = new RoomManager(io, config.initializer, {
     simulatedLatencyMs: config.debug?.simulatedLatencyMs || 0,
+    serverTick: config.serverTick,
+    serverTickRate: config.serverTickRate || 1000,
   });
 
   io.on("connection", (socket) => {
     console.log(`Client connected: ${socket.id}`);
-
-    // This is a standard pattern for associating data with a socket
     socket.data.roomId = null;
 
     socket.on("client:join_room", async (roomId: string) => {
@@ -39,14 +43,9 @@ export function createServer(config: ServerConfig) {
       await socket.join(roomId);
       roomController.addClient(socket.id);
 
-      const joinPatches = await roomController.dispatch(
-        "addCharacter",
-        [socket.id],
-        socket.id
-      );
-
+      await roomController.dispatch("addCharacter", [socket.id], socket.id);
       socket.emit("server:initial_state", roomController.getState());
-      socket.to(roomId).emit("server:patch", joinPatches);
+      // Note: The patches are now broadcast automatically by the 'state-changed' listener
     });
 
     socket.on(
@@ -54,15 +53,9 @@ export function createServer(config: ServerConfig) {
       async (roomId: string, actionName: string, ...args: unknown[]) => {
         const roomController = roomManager.getRoom(roomId);
         if (!roomController) return;
-
-        const patches = await roomController.dispatch(
-          actionName,
-          args,
-          socket.id
-        );
-        if (patches.length > 0) {
-          io.to(roomId).emit("server:patch", patches);
-        }
+        // This dispatch will also trigger the 'state-changed' listener,
+        // so we don't need to manually broadcast here anymore.
+        await roomController.dispatch(actionName, args, socket.id);
       }
     );
 
@@ -73,16 +66,12 @@ export function createServer(config: ServerConfig) {
         const roomController = roomManager.getRoom(roomId);
         if (roomController) {
           roomController.removeClient(socket.id);
-          const leavePatches = roomController.dispatchSync(
+          // This dispatch will also trigger the broadcast automatically.
+          roomController.dispatchSync(
             "removeCharacter",
             [socket.id],
             socket.id
           );
-
-          if (leavePatches.length > 0) {
-            socket.to(roomId).emit("server:patch", leavePatches);
-          }
-
           if (roomController.getClientCount() === 0) {
             roomManager.cleanup(roomId);
           }

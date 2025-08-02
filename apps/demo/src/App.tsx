@@ -62,9 +62,75 @@ const PixiCharacter = ({ character }: { character: CharacterType }) => {
   );
 };
 
+// NEW: A PixiJS component for rendering a single enemy
+const PixiEnemy = ({
+  enemy,
+}: {
+  enemy: {
+    id: string;
+    position: { x: number; y: number };
+    type: string;
+    health: number;
+  };
+}) => {
+  const enemyColor = enemy.type === "patrol" ? 0xff6b6b : 0xff8e00; // Red for patrol, orange for chase
+
+  const draw = useCallback(
+    (g: PIXI.Graphics) => {
+      g.clear();
+      // Draw enemy as a triangle pointing down
+      g.moveTo(0, -20);
+      g.lineTo(-15, 10);
+      g.lineTo(15, 10);
+      g.closePath();
+      g.fill(enemyColor);
+      g.stroke({ width: 2, color: 0xffffff });
+    },
+    [enemyColor]
+  );
+
+  return (
+    <pixiContainer x={enemy.position.x} y={enemy.position.y}>
+      <pixiGraphics draw={draw} />
+      <pixiText
+        text={`Enemy-${enemy.id.substring(0, 4)}`}
+        anchor={0.5}
+        y={-35}
+        style={
+          new PIXI.TextStyle({
+            fill: "white",
+            fontSize: 12,
+            fontFamily: "sans-serif",
+            stroke: "black",
+            fontWeight: "bold",
+          })
+        }
+      />
+      {/* Health bar */}
+      <pixiGraphics
+        draw={(g) => {
+          g.clear();
+          g.rect(-15, 15, 30, 4);
+          g.fill(0x333333);
+          g.stroke({ width: 1, color: 0xffffff });
+          g.rect(-15, 15, (enemy.health / 100) * 30, 4);
+          g.fill(
+            enemy.health > 50
+              ? 0x22c55e
+              : enemy.health > 25
+              ? 0xf59e0b
+              : 0xef4444
+          );
+        }}
+      />
+    </pixiContainer>
+  );
+};
+
 // A PixiJS component for rendering the platforms and game world
 const GameScene = () => {
   const characters = useGameStore((state) => state.characters);
+  const enemies = useGameStore((state) => state.enemies); // NEW: Get enemies from store
 
   const platforms = [
     {
@@ -122,6 +188,10 @@ const GameScene = () => {
       {characters.map((character) => (
         <PixiCharacter key={character.id} character={character} />
       ))}
+      {/* NEW: Render Enemies */}
+      {enemies.map((enemy) => (
+        <PixiEnemy key={enemy.id} enemy={enemy} />
+      ))}
     </pixiContainer>
   );
 };
@@ -132,9 +202,8 @@ const GameController = () => {
   const inputs = useRef({ left: false, right: false });
   const lastSyncTime = useRef(performance.now());
 
-  // Use the `useTick` hook, which provides a `delta` value for frame-rate independent physics.
   useTick((ticker) => {
-    const delta = ticker.deltaTime; // The time elapsed since the last frame, normalized for 60fps.
+    const delta = ticker.deltaTime;
 
     if (!clientId) return;
 
@@ -142,6 +211,17 @@ const GameController = () => {
       .getState()
       .characters.find((c) => c.id === clientId);
     if (!myCharacter) return;
+
+    // --- IDLE CHECK: If doing nothing on the ground, skip physics ---
+    if (
+      myCharacter.isOnGround &&
+      myCharacter.velocity.x === 0 &&
+      myCharacter.velocity.y === 0 &&
+      !inputs.current.left &&
+      !inputs.current.right
+    ) {
+      return;
+    }
 
     const newVelocity = { ...myCharacter.velocity };
     if (inputs.current.left) newVelocity.x = -PHYSICS_CONSTANTS.MOVE_SPEED;
@@ -184,9 +264,22 @@ const GameController = () => {
     if (newPosition.x > window.innerWidth - 24)
       newPosition.x = window.innerWidth - 24;
 
+    // THE FIX: Check if the state has meaningfully changed before dispatching.
+    // We use small thresholds to avoid floating point inaccuracies.
+    const hasStateChanged =
+      Math.abs(myCharacter.position.x - newPosition.x) > 0.1 ||
+      Math.abs(myCharacter.position.y - newPosition.y) > 0.1 ||
+      Math.abs(myCharacter.velocity.x - newVelocity.x) > 0.1 ||
+      Math.abs(myCharacter.velocity.y - newVelocity.y) > 0.1 ||
+      myCharacter.isOnGround !== newIsOnGround;
+
     const now = performance.now();
-    if (now - lastSyncTime.current > PHYSICS_CONSTANTS.SYNC_INTERVAL) {
+    if (
+      hasStateChanged &&
+      now - lastSyncTime.current > PHYSICS_CONSTANTS.SYNC_INTERVAL
+    ) {
       lastSyncTime.current = now;
+      console.log("CLIENT: Sending updatePlayerState");
       gameActions.updatePlayerState(
         clientId,
         newPosition,
@@ -225,7 +318,7 @@ const GameController = () => {
 // --- Main App Component ---
 
 function App() {
-  const { characters, clientId, connectionStatus } = useGameStore();
+  const { characters, enemies, clientId, connectionStatus } = useGameStore();
   const { isInstructionsOpen, actions: uiActions } = useUIStore();
   const myCharacter = characters.find((c) => c.id === clientId);
 
@@ -285,6 +378,21 @@ function App() {
             <div>On Ground: {myCharacter.isOnGround ? "Yes" : "No"}</div>
           </div>
         )}
+        {/* NEW: Enemy information */}
+        <div className="absolute bottom-4 left-4 bg-black bg-opacity-75 p-2 rounded text-xs shadow-lg pointer-events-auto">
+          <div className="font-bold mb-1">Enemies: {enemies.length}</div>
+          {enemies.slice(0, 3).map((enemy) => (
+            <div key={enemy.id} className="text-xs">
+              {enemy.id.substring(0, 8)}: ({Math.round(enemy.position.x)},{" "}
+              {Math.round(enemy.position.y)})
+            </div>
+          ))}
+          {enemies.length > 3 && (
+            <div className="text-xs text-gray-400">
+              ...and {enemies.length - 3} more
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

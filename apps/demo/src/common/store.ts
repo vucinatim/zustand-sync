@@ -11,6 +11,15 @@ import { PHYSICS_CONSTANTS } from "./physics-constants";
 // Notice there is no mention of `FrameworkState` here.
 interface GameState {
   characters: Character[];
+  enemies: Enemy[]; // NEW: Enemy state
+}
+
+interface Enemy {
+  id: string;
+  position: { x: number; y: number };
+  patrolTarget?: { x: number; y: number };
+  health: number;
+  type: "patrol" | "chase";
 }
 
 interface GameActions {
@@ -25,6 +34,20 @@ interface GameActions {
 
   // NEW action for jumping
   jump: (characterId: string, senderId?: string) => void;
+
+  // NEW actions for enemy management
+  spawnEnemy: (
+    enemyId: string,
+    position: { x: number; y: number },
+    type?: "patrol" | "chase",
+    senderId?: string
+  ) => void;
+  updateEnemyState: (
+    enemyId: string,
+    updates: Partial<Enemy>,
+    senderId?: string
+  ) => void;
+  removeEnemy: (enemyId: string, senderId?: string) => void;
 
   // Keep these actions
   cycleMyColor: (senderId?: string) => void;
@@ -56,6 +79,20 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
   {
     // Argument 1: The initial state
     characters: [],
+    enemies: [
+      {
+        id: "enemy-1",
+        position: { x: 300, y: 500 },
+        health: 100,
+        type: "patrol",
+      },
+      {
+        id: "enemy-2",
+        position: { x: 500, y: 500 },
+        health: 100,
+        type: "patrol",
+      },
+    ],
   },
   (set, get) => ({
     updatePlayerState: (
@@ -174,6 +211,49 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
       delete INITIAL_POSITIONS[id];
       set((state) => ({
         characters: state.characters.filter((char) => char.id !== id),
+      }));
+    },
+
+    // NEW: Enemy management actions
+    spawnEnemy: (
+      enemyId: string,
+      position: { x: number; y: number },
+      type: "patrol" | "chase" = "patrol",
+      senderId?: string
+    ) => {
+      if (senderId !== "server") return; // Only server can spawn enemies
+
+      const newEnemy: Enemy = {
+        id: enemyId,
+        position,
+        health: 100,
+        type,
+      };
+
+      set((state) => ({
+        enemies: [...state.enemies, newEnemy],
+      }));
+    },
+
+    updateEnemyState: (
+      enemyId: string,
+      updates: Partial<Enemy>,
+      senderId?: string
+    ) => {
+      if (senderId !== "server") return; // Only server can update enemies
+
+      set((state) => ({
+        enemies: state.enemies.map((enemy) =>
+          enemy.id === enemyId ? { ...enemy, ...updates } : enemy
+        ),
+      }));
+    },
+
+    removeEnemy: (enemyId: string, senderId?: string) => {
+      if (senderId) return; // Only server can remove enemies
+
+      set((state) => ({
+        enemies: state.enemies.filter((enemy) => enemy.id !== enemyId),
       }));
     },
   })

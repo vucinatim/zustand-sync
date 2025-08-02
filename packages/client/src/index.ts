@@ -65,6 +65,7 @@ export const sync =
       });
 
       newSocket.on("server:patch", (patches: Patch[]) => {
+        console.log("CLIENT: Received server:patch", patches); // <-- ADD THIS LINE
         const isFullReplacement =
           patches.length === 1 &&
           patches[0].op === "replace" &&
