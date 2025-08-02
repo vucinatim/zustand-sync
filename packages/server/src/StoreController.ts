@@ -22,7 +22,12 @@ export class StoreController<TState extends { actions: Record<string, any> }> {
     this.options = { simulatedLatencyMs: 0, ...options };
 
     this.store.subscribe((newState, prevState) => {
-      const [, patches] = produceWithPatches(prevState, () => newState);
+      // By using a recipe that applies the new state's properties to a draft
+      // of the old state, we allow immer to diff the changes correctly
+      // and generate minimal patches instead of a full replacement.
+      const [, patches] = produceWithPatches(prevState, (draft) => {
+        Object.assign(draft, newState);
+      });
       this.lastPatches = patches;
     });
   }
