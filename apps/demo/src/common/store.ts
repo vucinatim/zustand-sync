@@ -5,26 +5,38 @@ import {
   type FrameworkState,
 } from "@zustand-sync/client";
 import type { Character } from "./types";
+import { PHYSICS_CONSTANTS } from "./physics-constants";
 
 // 1. Define the user's state and actions as if it were a normal store.
+// Notice there is no mention of `FrameworkState` here.
 interface GameState {
   characters: Character[];
 }
 
-// 2. THE FIX: Update the action's signature to accept an optional senderId
 interface GameActions {
-  moveCharacter: (
+  // NEW action for physics-based movement
+  updatePlayerState: (
     characterId: string,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
+    velocity: { x: number; y: number },
+    isOnGround: boolean,
+    senderId?: string
   ) => void;
-  cycleMyColor: (senderId?: string) => void; // MODIFIED HERE
-  resetPositions: () => void;
+
+  // NEW action for jumping
+  jump: (characterId: string, senderId?: string) => void;
+
+  // Keep these actions
+  cycleMyColor: (senderId?: string) => void;
   addCharacter: (id: string, senderId?: string) => void;
   removeCharacter: (id: string, senderId?: string) => void;
+
+  // This can be removed or kept for debugging
+  resetPositions: () => void;
 }
 
-// 3. Define the final, combined store type for use in our components.
-export type GameStore = GameState & { actions: GameActions } & FrameworkState;
+// 2. Define the final, combined store type for use in our components.
+export type GameStore = GameState & FrameworkState;
 
 const COLORS = [
   "bg-red-400",
@@ -36,49 +48,105 @@ const COLORS = [
 ];
 const INITIAL_POSITIONS: { [key: string]: { x: number; y: number } } = {};
 
-// 4. Create the store initializer using the helper.
+// 3. Create the store initializer.
+// It uses Zustand's `StateCreator` type for `GameState`. This is standard practice.
+// The `get` function here will only see `GameState`. Our middleware correctly
+// provides the `clientId` from the full state when `cycleMyColor` needs it.
 const gameStoreInitializer = createInitializer<GameState, GameActions>(
   {
+    // Argument 1: The initial state
     characters: [],
   },
   (set, get) => ({
-    moveCharacter: (characterId, position) => {
+    updatePlayerState: (
+      characterId,
+      position,
+      velocity,
+      isOnGround,
+      senderId
+    ) => {
+      const isServer = !!senderId;
+
+      if (isServer) {
+        const character = get().characters.find((c) => c.id === characterId);
+        if (!character) return;
+
+        // TODO: Add movement validation back later if needed
+        // For now, trust the client for responsive movement
+      }
+
+      // SHARED LOGIC: Update the character's full state.
       set((state) => ({
         characters: state.characters.map((char) =>
-          char.id === characterId ? { ...char, position } : char
+          char.id === characterId
+            ? {
+                ...char,
+                position,
+                velocity,
+                isOnGround,
+                lastMoveTimestamp: isServer
+                  ? Date.now()
+                  : char.lastMoveTimestamp,
+              }
+            : char
         ),
       }));
     },
-    // 5. THE FIX: Update the implementation to use the senderId
-    cycleMyColor: (senderId?: string) => {
-      // On the client, senderId will be undefined, so we fall back to get().clientId.
-      // On the server, the dispatcher provides the senderId, which we use.
-      const myId = senderId || get().clientId;
-      if (!myId) {
-        return;
+
+    jump: (characterId: string, senderId?: string) => {
+      const isServer = !!senderId;
+
+      if (isServer) {
+        const character = get().characters.find((c) => c.id === characterId);
+        // VALIDATION: Player must be on the ground to jump.
+        if (!character || !character.isOnGround) {
+          return; // Reject the action.
+        }
       }
+
+      // SHARED LOGIC: Apply jump velocity.
+      set((state) => ({
+        characters: state.characters.map((char) =>
+          char.id === characterId
+            ? {
+                ...char,
+                velocity: {
+                  ...char.velocity,
+                  y: PHYSICS_CONSTANTS.JUMP_VELOCITY,
+                },
+                isOnGround: false,
+              }
+            : char
+        ),
+      }));
+    },
+
+    cycleMyColor: () => {
+      const myId = get().clientId; // `get()` is automatically typed correctly!
+      if (!myId) return;
 
       set((state) => ({
         characters: state.characters.map((char) => {
-          if (char.id !== myId) {
-            return char;
-          }
+          if (char.id !== myId) return char;
           const currentColorIndex = COLORS.indexOf(char.color);
           const nextColorIndex = (currentColorIndex + 1) % COLORS.length;
-          const newColor = COLORS[nextColorIndex];
-          return { ...char, color: newColor };
+          return { ...char, color: COLORS[nextColorIndex] };
         }),
       }));
     },
+
     resetPositions: () => {
       set((state) => ({
         characters: state.characters.map((char) => ({
           ...char,
           position: INITIAL_POSITIONS[char.id] || { x: 100, y: 100 },
+          velocity: { x: 0, y: 0 },
+          isOnGround: false,
         })),
       }));
     },
-    addCharacter: (id, senderId) => {
+
+    addCharacter: (id: string, senderId?: string) => {
       if (senderId && id !== senderId) return;
       if (get().characters.some((c) => c.id === id)) return;
 
@@ -93,10 +161,15 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
         name: `Player-${id.substring(0, 4)}`,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         position: newPosition,
+        // --- NEW PROPERTIES ---
+        velocity: { x: 0, y: 0 },
+        isOnGround: false,
+        lastMoveTimestamp: Date.now(),
       };
       set((state) => ({ characters: [...state.characters, newCharacter] }));
     },
-    removeCharacter: (id, senderId) => {
+
+    removeCharacter: (id: string, senderId?: string) => {
       if (senderId && id !== senderId) return;
       delete INITIAL_POSITIONS[id];
       set((state) => ({
@@ -106,7 +179,9 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
   })
 );
 
-// 6. Create the final store. This code doesn't need to change.
+// 4. Create the final store.
+// We provide our final `GameStore` type to `create`.
+// We compose our `synced` middleware with `devtools`.
 export const useGameStore = create(sync(gameStoreInitializer));
 
 // --- Local UI Store (unchanged) ---

@@ -1,195 +1,288 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useGameStore, useUIStore } from "./common/store";
-import { Character } from "./components/Character";
+import type { Character as CharacterType } from "./common/types";
+import { PHYSICS_CONSTANTS } from "./common/physics-constants";
 
-function App() {
-  const [roomIdInput, setRoomIdInput] = useState("main-lobby");
+// Import PixiJS and the react-pixi components
+import { Application, useTick, extend } from "@pixi/react";
+import * as PIXI from "pixi.js";
 
-  // --- Selecting state from the Synced Store ---
+// Use `extend` to make PIXI components available to the reconciler
+extend({
+  Graphics: PIXI.Graphics,
+  Text: PIXI.Text,
+  Container: PIXI.Container,
+});
+
+// --- PixiJS Components ---
+
+// A PixiJS component for rendering a single character
+const PixiCharacter = ({ character }: { character: CharacterType }) => {
+  const colorMap: { [key: string]: number } = {
+    "bg-red-400": 0xef4444,
+    "bg-blue-400": 0x3b82f6,
+    "bg-green-400": 0x22c55e,
+    "bg-purple-400": 0x8b5cf6,
+    "bg-pink-400": 0xec4899,
+    "bg-indigo-400": 0x6366f1,
+  };
+  const fillColor = colorMap[character.color] || 0xffffff;
+
+  // THE FIX: Updated to modern PixiJS v8 API
+  const draw = useCallback(
+    (g: PIXI.Graphics) => {
+      g.clear();
+      g.circle(0, 0, 24); // 1. Define the shape
+      g.fill(fillColor); // 2. Fill it
+      g.stroke({ width: 2, color: 0xffffff }); // 3. Stroke it
+    },
+    [fillColor]
+  );
+
+  // THE FIX: Wrap Graphics and Text in a Container to resolve the `addChild` warning.
+  // The container is now responsible for the position.
+  return (
+    <pixiContainer x={character.position.x} y={character.position.y}>
+      <pixiGraphics draw={draw} />
+      <pixiText
+        text={character.name}
+        anchor={0.5}
+        y={-40}
+        style={
+          new PIXI.TextStyle({
+            fill: "white",
+            fontSize: 14,
+            fontFamily: "sans-serif",
+            stroke: "black",
+            fontWeight: "bold",
+          })
+        }
+      />
+    </pixiContainer>
+  );
+};
+
+// A PixiJS component for rendering the platforms and game world
+const GameScene = () => {
   const characters = useGameStore((state) => state.characters);
-  const { connectionStatus, clientId, api, _roomId } = useGameStore();
-  const gameActions = useGameStore((state) => state.actions);
 
-  // --- Selecting state from the Local UI Store ---
-  const isInstructionsOpen = useUIStore((state) => state.isInstructionsOpen);
-  const uiActions = useUIStore((state) => state.actions);
+  const platforms = [
+    {
+      x: 0,
+      y: window.innerHeight - 50,
+      width: window.innerWidth,
+      height: 50,
+      color: 0x166534,
+    },
+    {
+      x: 200,
+      y: window.innerHeight - 150,
+      width: 200,
+      height: 20,
+      color: 0x22c55e,
+    },
+    {
+      x: 500,
+      y: window.innerHeight - 250,
+      width: 250,
+      height: 20,
+      color: 0x22c55e,
+    },
+    {
+      x: 50,
+      y: window.innerHeight - 350,
+      width: 150,
+      height: 20,
+      color: 0x22c55e,
+    },
+  ];
 
-  const handleJoinRoom = () => {
-    if (roomIdInput) api.connect(roomIdInput);
-  };
-
-  const handleLeaveRoom = () => {
-    api.disconnect();
-  };
-
-  const handleColorChange = () => {
-    gameActions.cycleMyColor();
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (connectionStatus !== "connected") return;
-
-      const myCharacter = characters.find((c) => c.id === clientId);
-      if (!myCharacter) return;
-
-      const moveDistance = 20;
-      const newPosition = { ...myCharacter.position };
-
-      switch (event.key) {
-        case "ArrowUp":
-          newPosition.y -= moveDistance;
-          break;
-        case "ArrowDown":
-          newPosition.y += moveDistance;
-          break;
-        case "ArrowLeft":
-          newPosition.x -= moveDistance;
-          break;
-        case "ArrowRight":
-          newPosition.x += moveDistance;
-          break;
-        default:
-          return;
-      }
-
-      newPosition.x = Math.max(
-        24,
-        Math.min(window.innerWidth - 24, newPosition.x)
-      );
-      newPosition.y = Math.max(
-        24,
-        Math.min(window.innerHeight - 24, newPosition.y)
-      );
-
-      gameActions.moveCharacter(myCharacter.id, newPosition);
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [characters, gameActions, clientId, connectionStatus]);
+  // THE FIX: Updated to modern PixiJS v8 API
+  const drawPlatform = useCallback(
+    (g: PIXI.Graphics, platform: (typeof platforms)[0]) => {
+      g.clear();
+      g.rect(0, 0, platform.width, platform.height); // 1. Define the shape
+      g.fill(platform.color); // 2. Fill it
+    },
+    []
+  );
 
   return (
-    <div className="w-screen h-screen bg-gray-900 text-white font-sans overflow-hidden">
-      {/* Game Area */}
-      <div className="relative w-full h-full bg-gradient-to-br from-gray-800 to-gray-900">
-        {connectionStatus === "connected" &&
-          characters.map((character) => (
-            <Character key={character.id} character={character} />
-          ))}
-        {/* Grid Pattern Background */}
-        <div className="absolute inset-0 opacity-10">
-          <div
-            className="w-full h-full"
-            style={{
-              backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-            `,
-              backgroundSize: "50px 50px",
-            }}
-          />
-        </div>
+    <pixiContainer>
+      {/* Render Platforms */}
+      {platforms.map((platform, i) => (
+        <pixiGraphics
+          key={i}
+          draw={(g) => drawPlatform(g, platform)}
+          x={platform.x}
+          y={platform.y}
+        />
+      ))}
+      {/* Render Characters */}
+      {characters.map((character) => (
+        <PixiCharacter key={character.id} character={character} />
+      ))}
+    </pixiContainer>
+  );
+};
+
+// --- Game Logic Controller Component ---
+const GameController = () => {
+  const { clientId, actions: gameActions } = useGameStore();
+  const inputs = useRef({ left: false, right: false });
+  const lastSyncTime = useRef(performance.now());
+
+  // Use the `useTick` hook, which provides a `delta` value for frame-rate independent physics.
+  useTick((ticker) => {
+    const delta = ticker.deltaTime; // The time elapsed since the last frame, normalized for 60fps.
+
+    if (!clientId) return;
+
+    const myCharacter = useGameStore
+      .getState()
+      .characters.find((c) => c.id === clientId);
+    if (!myCharacter) return;
+
+    const newVelocity = { ...myCharacter.velocity };
+    if (inputs.current.left) newVelocity.x = -PHYSICS_CONSTANTS.MOVE_SPEED;
+    else if (inputs.current.right) newVelocity.x = PHYSICS_CONSTANTS.MOVE_SPEED;
+    else newVelocity.x = 0;
+    newVelocity.y += PHYSICS_CONSTANTS.GRAVITY * delta;
+
+    const newPosition = {
+      x: myCharacter.position.x + newVelocity.x * delta,
+      y: myCharacter.position.y + newVelocity.y * delta,
+    };
+
+    let newIsOnGround = false;
+    const platforms = [
+      {
+        x: 0,
+        y: window.innerHeight - 50,
+        width: window.innerWidth,
+        height: 50,
+      },
+      { x: 200, y: window.innerHeight - 150, width: 200, height: 20 },
+      { x: 500, y: window.innerHeight - 250, width: 250, height: 20 },
+      { x: 50, y: window.innerHeight - 350, width: 150, height: 20 },
+    ];
+    for (const platform of platforms) {
+      if (
+        newPosition.x > platform.x - 12 &&
+        newPosition.x < platform.x + platform.width + 12 &&
+        newPosition.y >= platform.y - 24 &&
+        myCharacter.position.y < platform.y
+      ) {
+        newPosition.y = platform.y - 24;
+        newVelocity.y = 0;
+        newIsOnGround = true;
+        break;
+      }
+    }
+
+    if (newPosition.x < 24) newPosition.x = 24;
+    if (newPosition.x > window.innerWidth - 24)
+      newPosition.x = window.innerWidth - 24;
+
+    const now = performance.now();
+    if (now - lastSyncTime.current > PHYSICS_CONSTANTS.SYNC_INTERVAL) {
+      lastSyncTime.current = now;
+      gameActions.updatePlayerState(
+        clientId,
+        newPosition,
+        newVelocity,
+        newIsOnGround
+      );
+    }
+  });
+
+  useEffect(() => {
+    if (!clientId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (e.key === "ArrowLeft") inputs.current.left = true;
+      if (e.key === "ArrowRight") inputs.current.right = true;
+      if (e.key === " " || e.key === "ArrowUp") gameActions.jump(clientId);
+      if (e.key === "c") gameActions.cycleMyColor();
+      if (e.key === "r") gameActions.resetPositions();
+      if (e.key === "i") useUIStore.getState().actions.toggleInstructions();
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") inputs.current.left = false;
+      if (e.key === "ArrowRight") inputs.current.right = false;
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [clientId, gameActions]);
+
+  return null;
+};
+
+// --- Main App Component ---
+
+function App() {
+  const { characters, clientId, connectionStatus } = useGameStore();
+  const { isInstructionsOpen, actions: uiActions } = useUIStore();
+  const myCharacter = characters.find((c) => c.id === clientId);
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white relative overflow-hidden">
+      <div className="absolute inset-0 z-0">
+        <Application resizeTo={window} backgroundColor={0x0c4a6e}>
+          <GameScene />
+          <GameController />
+        </Application>
       </div>
-
-      {/* UI Overlay */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-        <div className="absolute top-6 left-6 bg-black/80 backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700 pointer-events-auto">
-          <h1 className="text-2xl font-bold text-white mb-2">
-            Zustand-Sync Rooms
-          </h1>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm text-gray-300">Status:</span>
-            <span
-              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                connectionStatus === "connected"
-                  ? "bg-green-500/20 text-green-400"
-                  : connectionStatus === "connecting"
-                  ? "bg-yellow-500/20 text-yellow-400"
-                  : "bg-red-500/20 text-red-400"
-              }`}
-            >
-              {connectionStatus}
-            </span>
-          </div>
-          {connectionStatus === "connected" && (
-            <>
-              <p className="text-xs text-gray-400 mb-1">Room ID: {_roomId}</p>
-              <p className="text-xs text-gray-400 mb-3">
-                Client ID: {clientId}
-              </p>
-              <p className="text-sm text-gray-300 mb-4">
-                Use{" "}
-                <span className="font-mono bg-gray-700 px-1 rounded">↑↓←→</span>{" "}
-                to move
-              </p>
-              <button
-                onClick={gameActions.resetPositions}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Reset Positions
-              </button>
-              <button
-                onClick={handleColorChange}
-                className="mt-2 w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Change My Color
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* Room Connection UI */}
-        <div className="absolute top-6 right-6 bg-black/80 backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700 pointer-events-auto">
-          {connectionStatus !== "connected" ? (
-            <div className="flex flex-col gap-2 w-48">
-              <h3 className="font-bold text-white">Join a Room</h3>
-              <input
-                type="text"
-                value={roomIdInput}
-                onChange={(e) => setRoomIdInput(e.target.value)}
-                className="bg-gray-700 text-white p-2 rounded pointer-events-auto"
-                placeholder="Enter Room ID"
-              />
-              <button
-                onClick={handleJoinRoom}
-                disabled={!roomIdInput || connectionStatus === "connecting"}
-                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-500 text-white font-medium py-2 px-4 rounded-lg transition-all pointer-events-auto"
-              >
-                {connectionStatus === "connecting" ? "Connecting..." : "Join"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 w-48">
-              <h3 className="font-bold text-white">You are connected</h3>
-              <button
-                onClick={handleLeaveRoom}
-                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-all pointer-events-auto"
-              >
-                Leave Room
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Instructions UI */}
+      <div className="absolute inset-0 z-10 pointer-events-none">
         {isInstructionsOpen && (
-          <div className="absolute bottom-6 right-6 bg-black/80 backdrop-blur-sm p-4 rounded-xl shadow-2xl border border-gray-700 pointer-events-auto">
-            <h3 className="text-lg font-semibold text-white mb-2 flex justify-between items-center">
-              <span>How to Play</span>
-              <button
-                onClick={uiActions.toggleInstructions}
-                className="text-gray-400 hover:text-white"
-              >
-                ✕
-              </button>
-            </h3>
-            <ul className="text-sm text-gray-300 space-y-1">
-              <li>• Join a room to start playing</li>
-              <li>• Move with arrow keys</li>
-              <li>• Watch other players in real-time</li>
-              <li>• Open multiple windows to test</li>
+          <div className="absolute top-4 left-4 bg-black bg-opacity-75 p-4 rounded-lg max-w-sm shadow-2xl pointer-events-auto">
+            <h3 className="text-lg font-bold mb-2">2D Platformer Controls</h3>
+            <ul className="text-sm space-y-1">
+              <li>
+                <strong className="text-cyan-400">← →</strong> Move left/right
+              </li>
+              <li>
+                <strong className="text-cyan-400">Space/↑</strong> Jump
+              </li>
+              <li>
+                <strong className="text-cyan-400">C</strong> Change color
+              </li>
+              <li>
+                <strong className="text-cyan-400">R</strong> Reset positions
+              </li>
+              <li>
+                <strong className="text-cyan-400">I</strong> Toggle instructions
+              </li>
             </ul>
+            <button
+              onClick={uiActions.toggleInstructions}
+              className="mt-2 px-3 py-1 bg-indigo-600 rounded text-xs hover:bg-indigo-700"
+            >
+              Close
+            </button>
+          </div>
+        )}
+        <div className="absolute top-4 right-4 bg-black bg-opacity-75 p-2 rounded shadow-lg pointer-events-auto">
+          <div className="text-xs">
+            Status: {connectionStatus}
+            {clientId && <div>ID: {clientId.substring(0, 8)}...</div>}
+          </div>
+        </div>
+        {myCharacter && (
+          <div className="absolute top-20 right-4 bg-black bg-opacity-75 p-2 rounded text-xs shadow-lg pointer-events-auto">
+            <div>
+              Position: ({Math.round(myCharacter.position.x)},{" "}
+              {Math.round(myCharacter.position.y)})
+            </div>
+            <div>
+              Velocity: ({myCharacter.velocity.x.toFixed(1)},{" "}
+              {myCharacter.velocity.y.toFixed(1)})
+            </div>
+            <div>On Ground: {myCharacter.isOnGround ? "Yes" : "No"}</div>
           </div>
         )}
       </div>

@@ -1,12 +1,16 @@
 // apps/demo/src/common/types.ts
 
 // These types are specific to our demo application.
-export type Character = {
+export interface Character {
   id: string;
-  position: { x: number; y: number };
-  color: string;
   name: string;
-};
+  color: string;
+  position: { x: number; y: number };
+  // --- NEW PROPERTIES ---
+  velocity: { x: number; y: number };
+  isOnGround: boolean;
+  lastMoveTimestamp: number; // For server validation
+}
 
 // The GameState interface is now defined in store.ts to keep it close to the implementation
 // This file now only contains the Character type and any other shared types
