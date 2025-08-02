@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { produce, applyPatches, enablePatches, type Patch } from "immer";
 import { io, type Socket } from "socket.io-client";
-import type { StateCreator, StoreMutatorIdentifier } from "zustand";
+import type { StateCreator, StoreApi, StoreMutatorIdentifier } from "zustand";
 import type { LocalState, SyncedStoreApi } from "@zustand-sync/core";
 
 enablePatches();
@@ -17,7 +17,9 @@ const DEFAULT_ROOM_ID = "default-room";
 
 export const sync =
   <
-    TState extends { actions: Record<string, (...args: any[]) => void> },
+    // THE FIX: The constraint is relaxed to only require an `actions` object.
+    // This accepts interfaces like `GameActions` without issue.
+    TState extends { actions: object },
     Mis extends [StoreMutatorIdentifier, unknown][] = [],
     Mos extends [StoreMutatorIdentifier, unknown][] = []
   >(
@@ -86,48 +88,36 @@ export const sync =
       },
     };
 
-    const wrappedActions = Object.entries(userState.actions).reduce(
-      (acc, [actionName, originalAction]) => {
-        const key = actionName as keyof typeof userState.actions;
-        acc[key] = (...args: Parameters<typeof originalAction>) => {
-          originalAction(...args);
-          const { _socket, _roomId } = get();
-          if (_socket && _roomId) {
-            _socket.emit(
-              "client:dispatch_command",
-              _roomId,
-              actionName,
-              ...args
-            );
-          }
-        };
-        return acc;
-      },
-      {} as typeof userState.actions
-    );
+    // THE FIX: Use a for...in loop and a type assertion internally
+    // to safely wrap the user's actions without a strict external constraint.
+    const userActions = userState.actions as Record<
+      string,
+      (...args: any[]) => any
+    >;
+    const wrappedActions = {} as typeof userState.actions;
 
-    // ===================================================================
-    // THE NEW "MAGIC" LOGIC
-    // ===================================================================
+    for (const actionName in userActions) {
+      const originalAction = userActions[actionName];
+      (wrappedActions as any)[actionName] = (
+        ...args: Parameters<typeof originalAction>
+      ) => {
+        originalAction(...args);
+        const { _socket, _roomId } = get();
+        if (_socket && _roomId) {
+          _socket.emit("client:dispatch_command", _roomId, actionName, ...args);
+        }
+      };
+    }
 
-    // 1. Get a reference to the original subscribe method from the store API.
     const originalSubscribe = store.subscribe;
-
-    // 2. Overwrite the store's subscribe method with our own wrapper.
     store.subscribe = (...args) => {
-      // 3. On the VERY FIRST call to subscribe (i.e., the first time a
-      //    component uses the store), we trigger our auto-connect logic.
       if (!isAutoConnectionTriggered) {
         _connect(DEFAULT_ROOM_ID);
         isAutoConnectionTriggered = true;
       }
-
-      // 4. Always call the original subscribe to ensure Zustand works normally.
       return originalSubscribe(...args);
     };
-    // ===================================================================
 
-    // Return the final, combined state object.
     return {
       ...userState,
       actions: wrappedActions,
@@ -138,3 +128,26 @@ export const sync =
       api,
     };
   };
+
+type ActionCreator<TState, TActions extends object> = (
+  set: StoreApi<TState & { actions: TActions } & FrameworkState>["setState"],
+  get: StoreApi<TState & { actions: TActions } & FrameworkState>["getState"],
+  store: StoreApi<TState & { actions: TActions } & FrameworkState>
+) => TActions;
+
+export function createInitializer<
+  TState extends object,
+  TActions extends object
+>(
+  initialState: TState,
+  createActions: ActionCreator<TState, TActions>
+): StateCreator<TState & { actions: TActions }> {
+  // THE FIX: We cast the arguments passed to the user's function.
+  // This is the bridge that tells TypeScript: "Trust us, when this
+  // function is actually called by the `sync` middleware, `get` and `store`
+  // will have the full state shape."
+  return (set, get, store) => ({
+    ...initialState,
+    actions: createActions(set as any, get as any, store as any),
+  });
+}

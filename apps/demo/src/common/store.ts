@@ -1,26 +1,30 @@
 import { create } from "zustand";
-import { sync, type FrameworkState } from "@zustand-sync/client";
+import {
+  createInitializer,
+  sync,
+  type FrameworkState,
+} from "@zustand-sync/client";
 import type { Character } from "./types";
-import type { StateCreator } from "zustand";
 
 // 1. Define the user's state and actions as if it were a normal store.
-// Notice there is no mention of `FrameworkState` here.
 interface GameState {
   characters: Character[];
-  actions: {
-    moveCharacter: (
-      characterId: string,
-      position: { x: number; y: number }
-    ) => void;
-    cycleMyColor: () => void;
-    resetPositions: () => void;
-    addCharacter: (id: string, senderId?: string) => void;
-    removeCharacter: (id: string, senderId?: string) => void;
-  };
 }
 
-// 2. Define the final, combined store type for use in our components.
-export type GameStore = GameState & FrameworkState;
+// 2. THE FIX: Update the action's signature to accept an optional senderId
+interface GameActions {
+  moveCharacter: (
+    characterId: string,
+    position: { x: number; y: number }
+  ) => void;
+  cycleMyColor: (senderId?: string) => void; // MODIFIED HERE
+  resetPositions: () => void;
+  addCharacter: (id: string, senderId?: string) => void;
+  removeCharacter: (id: string, senderId?: string) => void;
+}
+
+// 3. Define the final, combined store type for use in our components.
+export type GameStore = GameState & { actions: GameActions } & FrameworkState;
 
 const COLORS = [
   "bg-red-400",
@@ -32,16 +36,12 @@ const COLORS = [
 ];
 const INITIAL_POSITIONS: { [key: string]: { x: number; y: number } } = {};
 
-// 3. Create the store initializer.
-// It uses Zustand's `StateCreator` type for `GameState`. This is standard practice.
-// The `get` function here will only see `GameState`. Our middleware correctly
-// provides the `clientId` from the full state when `cycleMyColor` needs it.
-const gameStoreInitializer: StateCreator<GameState, [], [], GameState> = (
-  set,
-  get
-) => ({
-  characters: [],
-  actions: {
+// 4. Create the store initializer using the helper.
+const gameStoreInitializer = createInitializer<GameState, GameActions>(
+  {
+    characters: [],
+  },
+  (set, get) => ({
     moveCharacter: (characterId, position) => {
       set((state) => ({
         characters: state.characters.map((char) =>
@@ -49,17 +49,24 @@ const gameStoreInitializer: StateCreator<GameState, [], [], GameState> = (
         ),
       }));
     },
-    cycleMyColor: () => {
-      // Our middleware ensures `get()` inside an action has access to the full state.
-      const myId = (get() as GameStore).clientId;
-      if (!myId) return;
+    // 5. THE FIX: Update the implementation to use the senderId
+    cycleMyColor: (senderId?: string) => {
+      // On the client, senderId will be undefined, so we fall back to get().clientId.
+      // On the server, the dispatcher provides the senderId, which we use.
+      const myId = senderId || get().clientId;
+      if (!myId) {
+        return;
+      }
 
       set((state) => ({
         characters: state.characters.map((char) => {
-          if (char.id !== myId) return char;
+          if (char.id !== myId) {
+            return char;
+          }
           const currentColorIndex = COLORS.indexOf(char.color);
           const nextColorIndex = (currentColorIndex + 1) % COLORS.length;
-          return { ...char, color: COLORS[nextColorIndex] };
+          const newColor = COLORS[nextColorIndex];
+          return { ...char, color: newColor };
         }),
       }));
     },
@@ -96,12 +103,10 @@ const gameStoreInitializer: StateCreator<GameState, [], [], GameState> = (
         characters: state.characters.filter((char) => char.id !== id),
       }));
     },
-  },
-});
+  })
+);
 
-// 4. Create the final store.
-// We provide our final `GameStore` type to `create`.
-// We compose our `synced` middleware with `devtools`.
+// 6. Create the final store. This code doesn't need to change.
 export const useGameStore = create(sync(gameStoreInitializer));
 
 // --- Local UI Store (unchanged) ---
