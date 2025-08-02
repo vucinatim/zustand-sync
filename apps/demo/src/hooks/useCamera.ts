@@ -1,6 +1,5 @@
 import { useMemo, useRef, useEffect } from "react";
 import { useGameStore } from "../common/store";
-import { WORLD_CONSTANTS, WORLD_UTILS } from "../common/world-constants";
 
 export const useCamera = () => {
   const clientId = useGameStore((state) => state.clientId);
@@ -52,31 +51,10 @@ export const useCamera = () => {
         myCharacter.position.y - (screenCenterY + sign * halfDeadZoneHeight);
     }
 
-    // Clamp camera to world bounds
-    const clampedCamera = WORLD_UTILS.clampToWorldBounds(
-      targetCameraX,
-      targetCameraY
-    );
-
-    // Apply camera padding to keep some space around the edges
-    const paddingX = Math.min(
-      WORLD_CONSTANTS.CAMERA_PADDING,
-      WORLD_CONSTANTS.WIDTH / 4
-    );
-    const paddingY = Math.min(
-      WORLD_CONSTANTS.CAMERA_PADDING,
-      WORLD_CONSTANTS.HEIGHT / 4
-    );
-
-    // Ensure camera doesn't go too close to world edges
-    const finalTargetX = Math.max(
-      paddingX,
-      Math.min(clampedCamera.x, WORLD_CONSTANTS.WIDTH - paddingX)
-    );
-    const finalTargetY = Math.max(
-      paddingY,
-      Math.min(clampedCamera.y, WORLD_CONSTANTS.HEIGHT - paddingY)
-    );
+    // Allow camera to move freely to center the player
+    // Don't clamp to world bounds since we want smooth following
+    const finalTargetX = targetCameraX;
+    const finalTargetY = targetCameraY;
 
     return { x: finalTargetX, y: finalTargetY };
   }, [clientId, characters]);

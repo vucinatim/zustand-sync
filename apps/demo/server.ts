@@ -100,18 +100,14 @@ const { server } = createServer({
       }
     }
 
-    // Spawn enemies periodically if there aren't enough
-    if (!state.enemies || state.enemies.length < 3) {
-      const enemyId = `enemy-${Date.now()}-${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
-      const spawnPosition = {
-        x: Math.random() * 800,
-        y: Math.random() * 600,
-      };
+    // Spawn enemies at random positions
+    if (state.enemies.length < 3) {
+      const enemyId = `enemy-${Date.now()}`;
+      const spawnX = 800 + Math.random() * 400; // Center in world (800-1200 range)
+      const spawnY = 2800 + Math.random() * 200; // Near ground level
       storeController.dispatchSync(
         "spawnEnemy",
-        [enemyId, spawnPosition, "patrol"],
+        [enemyId, { x: spawnX, y: spawnY }, "patrol"],
         "server"
       );
     }

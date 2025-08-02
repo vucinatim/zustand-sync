@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+/* Improve canvas rendering quality for high DPI displays */
+canvas {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -o-crisp-edges;
+  image-rendering: auto;
+  -ms-interpolation-mode: bicubic;
+  /* Ensure proper scaling for high DPI */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* For high DPI displays (Retina, etc.), use smooth rendering */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  canvas {
+    image-rendering: auto;
+    /* Force hardware acceleration */
+    transform: translateZ(0);
+  }
+}
+
+/* For very high DPI displays (like MacBook Pro Retina) */
+@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 288dpi) {
+  canvas {
+    image-rendering: auto;
+    transform: translateZ(0);
+  }
+}

@@ -104,19 +104,19 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
     enemies: [
       {
         id: "enemy-1",
-        position: { x: 300, y: 500 },
+        position: { x: 900, y: 2800 }, // Centered (was 300, 500)
         health: 100,
         type: "patrol",
       },
       {
         id: "enemy-2",
-        position: { x: 500, y: 500 },
+        position: { x: 1100, y: 2800 }, // Centered (was 500, 500)
         health: 100,
         type: "patrol",
       },
       {
         id: "enemy-3",
-        position: { x: 700, y: 500 },
+        position: { x: 1000, y: 2800 }, // Centered (was 700, 500)
         health: 100,
         type: "patrol",
       },
@@ -221,8 +221,8 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
       if (get().characters.some((c) => c.id === id)) return;
 
       const newPosition = {
-        x: Math.floor(Math.random() * 800),
-        y: Math.floor(Math.random() * 600),
+        x: Math.floor(Math.random() * 400) + 800, // Center in world (800-1200 range)
+        y: Math.floor(Math.random() * 200) + 2800, // Near ground level
       };
       INITIAL_POSITIONS[id] = newPosition;
 

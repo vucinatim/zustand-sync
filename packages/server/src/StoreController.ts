@@ -88,16 +88,9 @@ export class StoreController<
       return [];
     }
 
-    console.log(
-      `[StoreController] Dispatching ${actionName} from ${senderId} with args:`,
-      args
-    );
     actionToRun(...args, senderId);
 
     if (this.lastPatches.length > 0) {
-      console.log(
-        `[StoreController] Emitting state-changed with ${this.lastPatches.length} patches`
-      );
       this.emit("state-changed", this.lastPatches);
     } else {
       console.log(`[StoreController] No patches generated for ${actionName}`);

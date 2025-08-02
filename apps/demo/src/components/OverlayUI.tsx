@@ -6,14 +6,31 @@ export const OverlayUI = () => {
   const clientId = useGameStore((state) => state.clientId);
   const characters = useGameStore((state) => state.characters);
   const enemies = useGameStore((state) => state.enemies);
+  const currentRoomId = useGameStore((state) => state._roomId);
+  const connectionStatus = useGameStore((state) => state.connectionStatus);
   const isInstructionsOpen = useUIStore((state) => state.isInstructionsOpen);
   const toggleInstructions = useUIStore(
     (state) => state.actions.toggleInstructions
   );
+  const storeApi = useGameStore((state) => state.api);
 
   // UI state for mode switching
   const [uiMode, setUIMode] = React.useState<"gameplay" | "debug">("gameplay");
   const [selectedRoom, setSelectedRoom] = React.useState("room-1");
+
+  // Sync selected room with current room
+  React.useEffect(() => {
+    if (currentRoomId && currentRoomId !== selectedRoom) {
+      setSelectedRoom(currentRoomId);
+    }
+  }, [currentRoomId, selectedRoom]);
+
+  // Handle room selection change
+  const handleRoomChange = (newRoomId: string) => {
+    setSelectedRoom(newRoomId);
+    console.log(`[OverlayUI] Switching to room: ${newRoomId}`);
+    storeApi.connect(newRoomId);
+  };
 
   // Calculate height percentage
   const myCharacter = characters.find((c) => c.id === clientId);
@@ -51,23 +68,25 @@ export const OverlayUI = () => {
           <div className="flex gap-2">
             <button
               onClick={() => setUIMode("gameplay")}
-              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-green-600/80 text-white"
+              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-green-600/80 text-white border border-green-400"
             >
               Gameplay
             </button>
             <button
               onClick={() => setUIMode("debug")}
-              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-gray-600/60 text-gray-300"
+              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-gray-600/60 text-gray-300 border border-gray-500"
             >
               Debug
             </button>
           </div>
           {/* Combined Progress & Players - Top Left */}
-          <div className="bg-black/40 backdrop-blur-sm text-white p-4 rounded-lg">
-            <div className="text-sm font-bold mb-2">Tower Progress</div>
-            <div className="w-32 h-3 bg-gray-700/60 rounded-full overflow-hidden mb-3">
+          <div className="bg-black/60 backdrop-blur-sm text-white p-4 rounded-lg border border-gray-700">
+            <div className="text-sm font-bold mb-2 text-green-400">
+              Tower Progress
+            </div>
+            <div className="w-32 h-3 bg-gray-800/60 rounded-full overflow-hidden mb-3 border border-gray-600">
               <div
-                className="h-full bg-gradient-to-t from-green-500 to-green-400 transition-all duration-300"
+                className="h-full bg-gradient-to-t from-green-400 to-green-300 transition-all duration-300"
                 style={{ width: `${heightPercentage}%` }}
               />
             </div>
@@ -75,7 +94,9 @@ export const OverlayUI = () => {
               {heightPercentage.toFixed(1)}% to the top
             </div>
 
-            <div className="text-sm font-bold mb-2">Players Online</div>
+            <div className="text-sm font-bold mb-2 text-blue-400">
+              Players Online
+            </div>
             <div className="space-y-1">
               {characters.map((char) => (
                 <div key={char.id} className="flex items-center gap-2">
@@ -94,12 +115,17 @@ export const OverlayUI = () => {
           </div>
 
           {/* Room Selection - Below Progress & Players */}
-          <div className="bg-black/40 backdrop-blur-sm text-white p-4 rounded-lg">
-            <h3 className="text-sm font-bold mb-2">Room Selection</h3>
+          <div className="bg-black/60 backdrop-blur-sm text-white p-4 rounded-lg border border-gray-700">
+            <h3 className="text-sm font-bold mb-2 text-purple-400">
+              Room Selection
+            </h3>
+            <div className="text-xs text-gray-300 mb-2 font-mono">
+              Current: {currentRoomId || "Connecting..."}
+            </div>
             <select
               value={selectedRoom}
-              onChange={(e) => setSelectedRoom(e.target.value)}
-              className="bg-gray-700/60 w-full text-white px-3 py-1 rounded text-sm backdrop-blur-sm"
+              onChange={(e) => handleRoomChange(e.target.value)}
+              className="bg-gray-800/60 w-full text-white px-3 py-1 rounded text-sm backdrop-blur-sm border border-gray-600"
             >
               {roomOptions.map((room) => (
                 <option key={room} value={room}>
@@ -118,13 +144,13 @@ export const OverlayUI = () => {
           <div className="flex gap-2">
             <button
               onClick={() => setUIMode("gameplay")}
-              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-gray-600/60 text-gray-300"
+              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-gray-600/60 text-gray-300 border border-gray-500"
             >
               Gameplay
             </button>
             <button
               onClick={() => setUIMode("debug")}
-              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-blue-600/80 text-white"
+              className="px-3 py-1 rounded text-sm backdrop-blur-sm bg-blue-600/80 text-white border border-blue-400"
             >
               Debug
             </button>
@@ -151,10 +177,10 @@ export const OverlayUI = () => {
           )}
 
           {/* Connection Status */}
-          <div className="bg-black/40 backdrop-blur-sm text-white p-4 rounded-lg">
+          <div className="bg-black/60 backdrop-blur-sm text-white p-4 rounded-lg border border-gray-700">
             <div className="text-sm">
-              <div>Status: connected</div>
-              <div className="font-mono">
+              <div className="text-green-400">Status: {connectionStatus}</div>
+              <div className="font-mono text-blue-400">
                 ID: {clientId?.substring(0, 8)}...
               </div>
             </div>
@@ -162,34 +188,60 @@ export const OverlayUI = () => {
 
           {/* Player Debug Info */}
           {myCharacter && (
-            <div className="bg-black/40 backdrop-blur-sm text-white p-4 rounded-lg">
+            <div className="bg-black/60 backdrop-blur-sm text-white p-4 rounded-lg border border-gray-700">
               <div className="text-sm space-y-1">
-                <div className="font-mono">
+                <div className="font-mono text-yellow-400">
                   Position: ({myCharacter.position.x.toFixed(0)},{" "}
                   {myCharacter.position.y.toFixed(0)})
                 </div>
-                <div className="font-mono">
+                <div className="font-mono text-purple-400">
                   Velocity: ({myCharacter.velocity.x.toFixed(1)},{" "}
                   {myCharacter.velocity.y.toFixed(1)})
                 </div>
-                <div>On Ground: {myCharacter.isOnGround ? "Yes" : "No"}</div>
+                <div className="text-pink-400">
+                  On Ground: {myCharacter.isOnGround ? "Yes" : "No"}
+                </div>
               </div>
             </div>
           )}
 
           {/* Enemies Debug Info */}
-          <div className="bg-black/40 backdrop-blur-sm text-white p-4 rounded-lg">
+          <div className="bg-black/60 backdrop-blur-sm text-white p-4 rounded-lg border border-gray-700">
             <div className="text-sm">
-              <div className="font-bold mb-1">
+              <div className="font-bold mb-1 text-red-400">
                 Enemies: <span className="font-mono">{enemies.length}</span>
               </div>
               {enemies.map((enemy) => (
-                <div key={enemy.id} className="text-xs font-mono">
+                <div
+                  key={enemy.id}
+                  className="text-xs font-mono text-orange-400"
+                >
                   {enemy.id}: ({enemy.position.x.toFixed(0)},{" "}
                   {enemy.position.y.toFixed(0)})
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Room Selection - Debug Mode */}
+          <div className="bg-black/60 backdrop-blur-sm text-white p-4 rounded-lg border border-gray-700">
+            <h3 className="text-sm font-bold mb-2 text-purple-400">
+              Room Selection
+            </h3>
+            <div className="text-xs text-gray-300 mb-2 font-mono">
+              Current: {currentRoomId || "Connecting..."}
+            </div>
+            <select
+              value={selectedRoom}
+              onChange={(e) => handleRoomChange(e.target.value)}
+              className="bg-gray-800/60 w-full text-white px-3 py-1 rounded text-sm backdrop-blur-sm border border-gray-600"
+            >
+              {roomOptions.map((room) => (
+                <option key={room} value={room}>
+                  {room}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Cursor Button */}

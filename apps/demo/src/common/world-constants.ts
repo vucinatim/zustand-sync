@@ -33,163 +33,163 @@ export const PLATFORMS: Platform[] = [
   // Ground level
   {
     x: 0,
-    y: WORLD_CONSTANTS.HEIGHT - 50,
+    y: WORLD_CONSTANTS.HEIGHT,
     width: WORLD_CONSTANTS.WIDTH,
-    height: 50,
-    color: 0x166534,
+    height: 300,
+    color: 0x191919, // Bright neon green
   },
-  // Tower platforms going upward - spread out horizontally
+  // Tower platforms going upward - centered in world
   {
-    x: 200, // Left side
+    x: 700, // Center-left (was 200)
     y: WORLD_CONSTANTS.HEIGHT - 200,
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 600, // Right side
+    x: 1100, // Center-right (was 600)
     y: WORLD_CONSTANTS.HEIGHT - 350,
     width: 250,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 150, // Left side
+    x: 650, // Left side (was 150)
     y: WORLD_CONSTANTS.HEIGHT - 500,
     width: 150,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 650, // Right side
+    x: 1150, // Right side (was 650)
     y: WORLD_CONSTANTS.HEIGHT - 650,
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 100, // Far left
+    x: 600, // Far left (was 100)
     y: WORLD_CONSTANTS.HEIGHT - 800,
     width: 180,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 700, // Far right
+    x: 1200, // Far right (was 700)
     y: WORLD_CONSTANTS.HEIGHT - 950,
     width: 220,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 300, // Center-left
+    x: 800, // Center-left (was 300)
     y: WORLD_CONSTANTS.HEIGHT - 1100,
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 500, // Center-right
+    x: 1000, // Center-right (was 500)
     y: WORLD_CONSTANTS.HEIGHT - 1250,
     width: 150,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 50, // Very far left
+    x: 550, // Very far left (was 50)
     y: WORLD_CONSTANTS.HEIGHT - 1400,
     width: 250,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 750, // Very far right
+    x: 1250, // Very far right (was 750)
     y: WORLD_CONSTANTS.HEIGHT - 1550,
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 250, // Left side
+    x: 750, // Left side (was 250)
     y: WORLD_CONSTANTS.HEIGHT - 1700,
     width: 180,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 600, // Right side
+    x: 1100, // Right side (was 600)
     y: WORLD_CONSTANTS.HEIGHT - 1850,
     width: 220,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 400, // Center
+    x: 900, // Center (was 400)
     y: WORLD_CONSTANTS.HEIGHT - 2000,
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 100, // Left side
+    x: 600, // Left side (was 100)
     y: WORLD_CONSTANTS.HEIGHT - 2150,
     width: 150,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 700, // Right side
+    x: 1200, // Right side (was 700)
     y: WORLD_CONSTANTS.HEIGHT - 2300,
     width: 250,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 350, // Center-left
+    x: 850, // Center-left (was 350)
     y: WORLD_CONSTANTS.HEIGHT - 2450,
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 550, // Center-right
+    x: 1050, // Center-right (was 550)
     y: WORLD_CONSTANTS.HEIGHT - 2600,
     width: 180,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
   {
-    x: 200, // Left side
+    x: 700, // Left side (was 200)
     y: WORLD_CONSTANTS.HEIGHT - 2750,
     width: 220,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x22c55e,
+    color: 0x00e676, // Bright neon green
   },
-  // Moving platforms for added challenge - spread out
+  // Moving platforms for added challenge - centered
   {
-    x: 150, // Left side
+    x: 650, // Left side (was 150)
     y: WORLD_CONSTANTS.HEIGHT - 900, // Unique Y position
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x3b82f6, // Blue for moving platforms
+    color: 0x00b0ff, // Bright neon blue for moving platforms
     moveSpeed: 0.5, // Slow movement
     moveRange: 100, // Move 100 pixels left and right
   },
   {
-    x: 650, // Right side
+    x: 1150, // Right side (was 650)
     y: WORLD_CONSTANTS.HEIGHT - 1500, // Unique Y position
     width: 250,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x3b82f6, // Blue for moving platforms
+    color: 0x00b0ff, // Bright neon blue for moving platforms
     moveSpeed: 0.8, // Medium movement
     moveRange: 150, // Move 150 pixels left and right
   },
   {
-    x: 300, // Center-left
+    x: 800, // Center-left (was 300)
     y: WORLD_CONSTANTS.HEIGHT - 2100, // Unique Y position
     width: 200,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0x3b82f6, // Blue for moving platforms
+    color: 0x00b0ff, // Bright neon blue for moving platforms
     moveSpeed: 1.2, // Fast movement
     moveRange: 200, // Move 200 pixels left and right
   },
@@ -199,7 +199,7 @@ export const PLATFORMS: Platform[] = [
     y: WORLD_CONSTANTS.HEIGHT - 2900,
     width: 300,
     height: WORLD_CONSTANTS.PLATFORM_HEIGHT,
-    color: 0xfbbf24,
+    color: 0xffd600, // Bright neon yellow for goal
   },
 ];
 
