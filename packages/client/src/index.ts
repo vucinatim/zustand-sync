@@ -1,47 +1,52 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { create, type StoreApi, type UseBoundStore } from "zustand";
 import { produce, applyPatches, enablePatches, type Patch } from "immer";
 import { io, type Socket } from "socket.io-client";
+// 1. Import the necessary types from Zustand
+import type { StateCreator, StoreMutatorIdentifier } from "zustand";
 import type { LocalState, SyncedStoreApi } from "@zustand-sync/core";
 
 enablePatches();
 
-type FrameworkState = LocalState & {
+// This is the state our framework adds to the user's store.
+// We export it so users can include it in their final store type.
+export type FrameworkState = LocalState & {
   _socket: Socket | null;
   _roomId: string | null;
   api: SyncedStoreApi;
 };
 
-export function createSyncedStore<
-  TState extends { actions: Record<string, (...args: any[]) => void> }
->(
-  initializer: (
-    set: StoreApi<TState>["setState"],
-    get: StoreApi<TState>["getState"]
-  ) => TState
-): UseBoundStore<StoreApi<TState & FrameworkState>> {
-  type TFinalStore = TState & FrameworkState;
+// 2. This is the magic. The new, fully generic signature.
+export const sync =
+  <
+    TState extends { actions: Record<string, (...args: any[]) => void> },
+    // These generic parameters allow other middleware (like devtools) to be composed with yours.
+    Mis extends [StoreMutatorIdentifier, unknown][] = [],
+    Mos extends [StoreMutatorIdentifier, unknown][] = []
+  >(
+    initializer: StateCreator<TState, Mis, Mos>
+  ): StateCreator<TState & FrameworkState, Mis, Mos> =>
+  (set, get, store) => {
+    // `set`, `get`, and `store` are for the final state shape: `TState & FrameworkState`
 
-  return create<TFinalStore>((set, get) => {
-    const userState = initializer(set, get);
+    // 3. We call the user's initializer.
+    // The `store` object is the only part that needs a cast. Its type is "invariant",
+    // meaning StoreApi<A> is not compatible with StoreApi<B>. This is the one, minimal,
+    // and necessary cast we need to hide inside our library.
+    const userState = initializer(set as any, get as any, store as any);
 
     const api: SyncedStoreApi = {
       connect: (roomId) => {
         if (get()._socket) return;
 
         const newSocket = io("http://localhost:3001");
-        set({
-          _socket: newSocket,
-          connectionStatus: "connecting",
-        } as Partial<TFinalStore>);
+        set({ _socket: newSocket, connectionStatus: "connecting" } as any);
 
         newSocket.on("connect", () => {
           set({
             connectionStatus: "connected",
             clientId: newSocket.id,
             _roomId: roomId,
-          } as Partial<TFinalStore>);
+          } as any);
           newSocket.emit("client:join_room", roomId);
         });
 
@@ -51,45 +56,27 @@ export function createSyncedStore<
             clientId: null,
             _socket: null,
             _roomId: null,
-          } as Partial<TFinalStore>);
+          } as any);
         });
 
         newSocket.on("server:initial_state", (initialState) => {
-          // Destructure the incoming state to separate the (non-serializable) actions
-          // from the actual state data we want to apply.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { actions, ...restOfState } = initialState as TState;
-          console.log("Preserved actions:", actions);
-
-          set((state) => ({
-            ...state, // Keep the client's existing state (like api, _socket, and wrapped actions)
-            ...restOfState, // Apply only the state data from the server
-          }));
+          set(restOfState as any);
         });
 
         newSocket.on("server:patch", (patches: Patch[]) => {
-          // A "full replacement" patch looks like this:
           const isFullReplacement =
             patches.length === 1 &&
             patches[0].op === "replace" &&
             patches[0].path.length === 0;
 
           if (isFullReplacement) {
-            console.warn(
-              "Received a full-state replacement patch. Merging carefully."
-            );
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { actions, ...restOfState } = patches[0].value as TState;
-
-            set((state) => ({
-              ...state,
-              ...restOfState,
-            }));
+            set(restOfState as any);
           } else {
-            // This is for normal, incremental patches
-            set(
-              produce((draft) => {
-                applyPatches(draft, patches);
-              })
-            );
+            set(produce((draft) => applyPatches(draft, patches)));
           }
         });
       },
@@ -98,11 +85,15 @@ export function createSyncedStore<
       },
     };
 
+    // We wrap the user's actions to add the networking layer.
     const wrappedActions = Object.entries(userState.actions).reduce(
       (acc, [actionName, originalAction]) => {
         const key = actionName as keyof typeof userState.actions;
         acc[key] = (...args: Parameters<typeof originalAction>) => {
+          // 1. Run the original action logic for an optimistic update.
           originalAction(...args);
+
+          // 2. Emit the command to the server.
           const { _socket, _roomId } = get();
           if (_socket && _roomId) {
             _socket.emit(
@@ -118,6 +109,7 @@ export function createSyncedStore<
       {} as typeof userState.actions
     );
 
+    // Return the final, combined state object.
     return {
       ...userState,
       actions: wrappedActions,
@@ -127,5 +119,4 @@ export function createSyncedStore<
       _roomId: null,
       api,
     };
-  });
-}
+  };

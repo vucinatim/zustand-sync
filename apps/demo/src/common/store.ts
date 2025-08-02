@@ -1,115 +1,114 @@
-// src/common/store.ts (FINALIZED BLUEPRINT)
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { create } from "zustand";
+import { sync, type FrameworkState } from "@zustand-sync/client";
+import type { Character } from "./types";
+import type { StateCreator } from "zustand";
 
-import { produce } from "immer";
-import { create } from "zustand"; // Import the original `create`
-import { createSyncedStore } from "@zustand-sync/client";
-import type { GameState, UIState } from "./types";
+// 1. Define the user's state and actions as if it were a normal store.
+// Notice there is no mention of `FrameworkState` here.
+interface GameState {
+  characters: Character[];
+  actions: {
+    moveCharacter: (
+      characterId: string,
+      position: { x: number; y: number }
+    ) => void;
+    cycleMyColor: () => void;
+    resetPositions: () => void;
+    addCharacter: (id: string, senderId?: string) => void;
+    removeCharacter: (id: string, senderId?: string) => void;
+  };
+}
 
-// This list is now the "source of truth" used by the server,
-// and the "prediction guide" used by the client.
-const availableColors = [
+// 2. Define the final, combined store type for use in our components.
+export type GameStore = GameState & FrameworkState;
+
+const COLORS = [
   "bg-red-400",
   "bg-blue-400",
   "bg-green-400",
-  "bg-yellow-400",
   "bg-purple-400",
   "bg-pink-400",
   "bg-indigo-400",
-  "bg-teal-400",
 ];
+const INITIAL_POSITIONS: { [key: string]: { x: number; y: number } } = {};
 
-// 1. Define the initializer function. This is our complete isomorphic blueprint.
-export const gameStoreInitializer = (set: any, get: any) => ({
+// 3. Create the store initializer.
+// It uses Zustand's `StateCreator` type for `GameState`. This is standard practice.
+// The `get` function here will only see `GameState`. Our middleware correctly
+// provides the `clientId` from the full state when `cycleMyColor` needs it.
+const gameStoreInitializer: StateCreator<GameState, [], [], GameState> = (
+  set,
+  get
+) => ({
   characters: [],
   actions: {
-    // --- Actions triggered by server events ---
-    addCharacter: (socketId: string) => {
-      set(
-        produce((draft: any) => {
-          draft.characters.push({
-            id: socketId,
-            name: `Player-${socketId.substring(0, 4)}`,
-            color: `bg-${
-              ["red", "blue", "green", "yellow", "purple", "pink"][
-                Math.floor(Math.random() * 6)
-              ]
-            }-400`,
-            position: {
-              x: Math.floor(Math.random() * 700) + 50,
-              y: Math.floor(Math.random() * 500) + 50,
-            },
-          });
-        })
-      );
+    moveCharacter: (characterId, position) => {
+      set((state) => ({
+        characters: state.characters.map((char) =>
+          char.id === characterId ? { ...char, position } : char
+        ),
+      }));
     },
-    removeCharacter: (socketId: string) => {
-      set(
-        produce((draft: GameState) => {
-          const index = draft.characters.findIndex((c) => c.id === socketId);
-          if (index !== -1) draft.characters.splice(index, 1);
-        })
-      );
-    },
+    cycleMyColor: () => {
+      // Our middleware ensures `get()` inside an action has access to the full state.
+      const myId = (get() as GameStore).clientId;
+      if (!myId) return;
 
-    // --- Actions triggered by client commands ---
+      set((state) => ({
+        characters: state.characters.map((char) => {
+          if (char.id !== myId) return char;
+          const currentColorIndex = COLORS.indexOf(char.color);
+          const nextColorIndex = (currentColorIndex + 1) % COLORS.length;
+          return { ...char, color: COLORS[nextColorIndex] };
+        }),
+      }));
+    },
     resetPositions: () => {
-      set({ characters: [] });
+      set((state) => ({
+        characters: state.characters.map((char) => ({
+          ...char,
+          position: INITIAL_POSITIONS[char.id] || { x: 100, y: 100 },
+        })),
+      }));
     },
-    moveCharacter: (
-      characterId: string,
-      newPosition: { x: number; y: number },
-      // `senderId` is ONLY provided by the server during dispatch
-      senderId?: string
-    ) => {
-      set(
-        produce((draft: GameState) => {
-          // --- SERVER-SIDE AUTHORIZATION LOGIC ---
-          // This check will only run on the server because the client never provides a senderId.
-          if (senderId && senderId !== characterId) {
-            console.warn(
-              `SECURITY: Client ${senderId} tried to move character ${characterId}. Denied.`
-            );
-            return; // Abort the mutation
-          }
-          // --- END AUTHORIZATION ---
+    addCharacter: (id, senderId) => {
+      if (senderId && id !== senderId) return;
+      if (get().characters.some((c) => c.id === id)) return;
 
-          const char = draft.characters.find((c) => c.id === characterId);
-          if (char) char.position = newPosition;
-        })
-      );
+      const newPosition = {
+        x: Math.floor(Math.random() * 800),
+        y: Math.floor(Math.random() * 600),
+      };
+      INITIAL_POSITIONS[id] = newPosition;
+
+      const newCharacter: Character = {
+        id,
+        name: `Player-${id.substring(0, 4)}`,
+        color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        position: newPosition,
+      };
+      set((state) => ({ characters: [...state.characters, newCharacter] }));
     },
-
-    // --- RENAME AND REWRITE THIS ACTION ---
-    cycleMyColor: (senderId?: string) => {
-      set(
-        produce((draft: GameState) => {
-          // Identify the character to change. On the server, it's the senderId.
-          // On the client, it's the clientId from the store's state.
-          const characterId = senderId || get().clientId;
-          if (!characterId) return;
-
-          const char = draft.characters.find((c) => c.id === characterId);
-          if (char) {
-            // This logic now runs on BOTH the client (as a prediction)
-            // and the server (as the authority).
-            const currentIndex = availableColors.indexOf(char.color);
-            const nextIndex = (currentIndex + 1) % availableColors.length;
-            char.color = availableColors[nextIndex];
-          }
-        })
-      );
+    removeCharacter: (id, senderId) => {
+      if (senderId && id !== senderId) return;
+      delete INITIAL_POSITIONS[id];
+      set((state) => ({
+        characters: state.characters.filter((char) => char.id !== id),
+      }));
     },
   },
 });
 
-// --- 1. Define the Synced Store ---
-// The generic parameter defines the shape of our synced state and actions.
-// The client store uses the same initializer but without the server-specific actions
-export const useGameStore = createSyncedStore<GameState>(gameStoreInitializer);
+// 4. Create the final store.
+// We provide our final `GameStore` type to `create`.
+// We compose our `synced` middleware with `devtools`.
+export const useGameStore = create(sync(gameStoreInitializer));
 
-// --- 2. Define a Standard Zustand Store for Local UI State ---
-
+// --- Local UI Store (unchanged) ---
+interface UIState {
+  isInstructionsOpen: boolean;
+  actions: { toggleInstructions: () => void };
+}
 export const useUIStore = create<UIState>((set) => ({
   isInstructionsOpen: true,
   actions: {
@@ -117,3 +116,6 @@ export const useUIStore = create<UIState>((set) => ({
       set((state) => ({ isInstructionsOpen: !state.isInstructionsOpen })),
   },
 }));
+
+// Export the initializer for the server to use.
+export { gameStoreInitializer };

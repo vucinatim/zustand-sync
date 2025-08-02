@@ -1,4 +1,4 @@
-// apps/demo/src/common/types.ts (NEW FILE)
+// apps/demo/src/common/types.ts
 
 // These types are specific to our demo application.
 export type Character = {
@@ -8,29 +8,5 @@ export type Character = {
   name: string;
 };
 
-export type SyncedState = {
-  characters: Character[];
-};
-
-export type GameState = SyncedState & {
-  actions: {
-    resetPositions: () => void;
-    moveCharacter: (
-      characterId: string,
-      newPosition: { x: number; y: number },
-      senderId?: string
-    ) => void;
-    addCharacter: (socketId: string) => void;
-    removeCharacter: (socketId: string) => void;
-
-    // --- RENAME AND CHANGE THIS LINE ---
-    cycleMyColor: (senderId?: string) => void;
-  };
-};
-
-export type UIState = {
-  isInstructionsOpen: boolean;
-  actions: {
-    toggleInstructions: () => void;
-  };
-};
+// The GameState interface is now defined in store.ts to keep it close to the implementation
+// This file now only contains the Character type and any other shared types

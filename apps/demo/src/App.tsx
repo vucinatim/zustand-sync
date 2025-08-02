@@ -34,7 +34,7 @@ function App() {
       if (!myCharacter) return;
 
       const moveDistance = 20;
-      let newPosition = { ...myCharacter.position };
+      const newPosition = { ...myCharacter.position };
 
       switch (event.key) {
         case "ArrowUp":

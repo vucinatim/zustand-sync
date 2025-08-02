@@ -6,6 +6,11 @@
     "dev:server": "tsx watch apps/demo/server.ts",
     "build": "pnpm --filter \"./packages/*\" build"
   },
+  "pnpm": {
+    "overrides": {
+      "zustand": "5.0.7"
+    }
+  },
   "devDependencies": {
     "typescript": "^5.2.2",
     "tsx": "^4.20.3"
