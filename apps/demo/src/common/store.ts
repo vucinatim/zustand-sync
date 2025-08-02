@@ -3,8 +3,8 @@
 
 import { produce } from "immer";
 import { create } from "zustand"; // Import the original `create`
-import { createSyncedStore } from "../framework/framework";
-import type { SyncedState } from "./types";
+import { createSyncedStore } from "@zustand-sync/client";
+import type { GameState, UIState } from "./types";
 
 // 1. Define the initializer function. This is our complete isomorphic blueprint.
 export const gameStoreInitializer = (set: any) => ({
@@ -71,26 +71,10 @@ export const gameStoreInitializer = (set: any) => ({
 
 // --- 1. Define the Synced Store ---
 // The generic parameter defines the shape of our synced state and actions.
-type GameState = SyncedState & {
-  actions: {
-    resetPositions: () => void;
-    moveCharacter: (
-      characterId: string,
-      newPosition: { x: number; y: number }
-    ) => void;
-  };
-};
-
 // The client store uses the same initializer but without the server-specific actions
 export const useGameStore = createSyncedStore<GameState>(gameStoreInitializer);
 
 // --- 2. Define a Standard Zustand Store for Local UI State ---
-type UIState = {
-  isInstructionsOpen: boolean;
-  actions: {
-    toggleInstructions: () => void;
-  };
-};
 
 export const useUIStore = create<UIState>((set) => ({
   isInstructionsOpen: true,

@@ -4,7 +4,7 @@
 import { create, type StoreApi, type UseBoundStore } from "zustand";
 import { applyPatches, enablePatches, type Patch } from "immer";
 import { io, type Socket } from "socket.io-client";
-import type { LocalState } from "../common/types";
+import type { LocalState } from "@zustand-sync/core";
 
 enablePatches();
 

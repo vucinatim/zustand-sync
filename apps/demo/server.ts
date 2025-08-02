@@ -1,9 +1,9 @@
 // src/server/server.ts (This is now the user's entrypoint)
 
-// 1. Import the factory from the (future) framework package
-import { createServer } from "./factory";
+// 1. Import the factory from the framework package
+import { createServer } from "@zustand-sync/server";
 // 2. Import the application-specific game logic
-import { gameStoreInitializer } from "../common/store";
+import { gameStoreInitializer } from "./src/common/store";
 
 // 3. Configure the server by passing the game logic to the factory
 const { server } = createServer({
