@@ -2,11 +2,13 @@ import { useEffect, useRef } from "react";
 import { useTick } from "@pixi/react";
 import { useGameStore, useUIStore } from "../common/store";
 import { PHYSICS_CONSTANTS } from "../common/physics-constants";
+import { WORLD_CONSTANTS, WORLD_UTILS } from "../common/world-constants";
 
 // Game Logic Controller Component
 export const GameController = () => {
   const clientId = useGameStore((state) => state.clientId);
   const actions = useGameStore((state) => state.actions);
+  const platforms = useGameStore((state) => state.platforms);
   const inputs = useRef({ left: false, right: false });
   const lastSyncTime = useRef(performance.now());
 
@@ -21,56 +23,64 @@ export const GameController = () => {
     if (!myCharacter) return;
 
     // --- IDLE CHECK: If doing nothing on the ground, skip physics ---
-    if (
+    // BUT: We still need to check for platform movement that might cause falling
+    const isIdle =
       myCharacter.isOnGround &&
       myCharacter.velocity.x === 0 &&
       myCharacter.velocity.y === 0 &&
       !inputs.current.left &&
-      !inputs.current.right
-    ) {
-      return;
+      !inputs.current.right;
+
+    // Always run collision detection, even when idle
+    let newVelocity = { ...myCharacter.velocity };
+    let newPosition = { ...myCharacter.position };
+    let newIsOnGround = false;
+
+    // Only update velocity and position if not idle
+    if (!isIdle) {
+      if (inputs.current.left) newVelocity.x = -PHYSICS_CONSTANTS.MOVE_SPEED;
+      else if (inputs.current.right)
+        newVelocity.x = PHYSICS_CONSTANTS.MOVE_SPEED;
+      else newVelocity.x = 0;
+      newVelocity.y += PHYSICS_CONSTANTS.GRAVITY * delta;
+
+      newPosition = {
+        x: myCharacter.position.x + newVelocity.x * delta,
+        y: myCharacter.position.y + newVelocity.y * delta,
+      };
     }
 
-    const newVelocity = { ...myCharacter.velocity };
-    if (inputs.current.left) newVelocity.x = -PHYSICS_CONSTANTS.MOVE_SPEED;
-    else if (inputs.current.right) newVelocity.x = PHYSICS_CONSTANTS.MOVE_SPEED;
-    else newVelocity.x = 0;
-    newVelocity.y += PHYSICS_CONSTANTS.GRAVITY * delta;
-
-    const newPosition = {
-      x: myCharacter.position.x + newVelocity.x * delta,
-      y: myCharacter.position.y + newVelocity.y * delta,
-    };
-
-    let newIsOnGround = false;
-    const platforms = [
-      {
-        x: 0,
-        y: window.innerHeight - 50,
-        width: window.innerWidth,
-        height: 50,
-      },
-      { x: 200, y: window.innerHeight - 150, width: 200, height: 20 },
-      { x: 500, y: window.innerHeight - 250, width: 250, height: 20 },
-      { x: 50, y: window.innerHeight - 350, width: 150, height: 20 },
-    ];
+    // Use server-controlled platforms for collision detection
     for (const platform of platforms) {
+      const platformX = platform.currentX || platform.x;
+
       if (
-        newPosition.x > platform.x - 12 &&
-        newPosition.x < platform.x + platform.width + 12 &&
-        newPosition.y >= platform.y - 24 &&
+        newPosition.x > platformX - WORLD_CONSTANTS.PLAYER_RADIUS &&
+        newPosition.x <
+          platformX + platform.width + WORLD_CONSTANTS.PLAYER_RADIUS &&
+        newPosition.y >= platform.y - WORLD_CONSTANTS.PLAYER_RADIUS &&
         myCharacter.position.y < platform.y
       ) {
-        newPosition.y = platform.y - 24;
+        newPosition.y = platform.y - WORLD_CONSTANTS.PLAYER_RADIUS;
         newVelocity.y = 0;
         newIsOnGround = true;
         break;
       }
     }
 
-    if (newPosition.x < 24) newPosition.x = 24;
-    if (newPosition.x > window.innerWidth - 24)
-      newPosition.x = window.innerWidth - 24;
+    // Check if player was on ground but is no longer supported by any platform
+    if (myCharacter.isOnGround && !newIsOnGround) {
+      // Player was on ground but is no longer supported - start falling
+      newVelocity.y = 0; // Start with zero velocity, gravity will take over
+    }
+
+    // Clamp position to world bounds
+    const clampedPosition = WORLD_UTILS.clampToWorldBounds(
+      newPosition.x,
+      newPosition.y
+    );
+    newPosition.x = clampedPosition.x;
+    newPosition.y = clampedPosition.y;
 
     // THE FIX: Check if the state has meaningfully changed before dispatching.
     // We use small thresholds to avoid floating point inaccuracies.
@@ -104,7 +114,7 @@ export const GameController = () => {
       if (e.key === "ArrowLeft") inputs.current.left = true;
       if (e.key === "ArrowRight") inputs.current.right = true;
       if (e.key === " " || e.key === "ArrowUp") actions.jump(clientId);
-      if (e.key === "c") actions.cycleMyColor();
+      if (e.key === "c") actions.cycleMyColor(clientId);
       if (e.key === "r") actions.resetPositions();
       if (e.key === "i") useUIStore.getState().actions.toggleInstructions();
     };

@@ -11,6 +11,7 @@ export type ServerConfig = {
   initializer: (set: any, get: any, store: StoreApi<any>) => any;
   serverTick?: (storeController: StoreController<any>) => void;
   serverTickRate?: number;
+  serverTickEnabled?: boolean; // NEW: Control server tick system
   debug?: {
     simulatedLatencyMs?: number;
   };
@@ -29,6 +30,7 @@ export function createServer(config: ServerConfig) {
     simulatedLatencyMs: config.debug?.simulatedLatencyMs || 0,
     serverTick: config.serverTick,
     serverTickRate: config.serverTickRate || 1000,
+    serverTickEnabled: config.serverTickEnabled !== false, // Default to true if not specified
   });
 
   io.on("connection", (socket) => {

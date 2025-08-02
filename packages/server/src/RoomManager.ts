@@ -30,9 +30,6 @@ export class RoomManager {
       // 5. THE FIX: Listen for the 'state-changed' event from the controller.
       // When it fires, use the stored `io` instance to broadcast the patches.
       newController.on("state-changed", (patches) => {
-        console.log(
-          `[RoomManager] Broadcasting ${patches.length} patches to room ${roomId}`
-        );
         this.io.to(roomId).emit("server:patch", patches);
       });
 

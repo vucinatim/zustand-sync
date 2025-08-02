@@ -9,17 +9,31 @@ import { PHYSICS_CONSTANTS } from "./physics-constants";
 
 // 1. Define the user's state and actions as if it were a normal store.
 // Notice there is no mention of `FrameworkState` here.
-interface GameState {
-  characters: Character[];
-  enemies: Enemy[]; // NEW: Enemy state
-}
-
-interface Enemy {
+export interface Enemy {
   id: string;
   position: { x: number; y: number };
   patrolTarget?: { x: number; y: number };
   health: number;
-  type: "patrol" | "chase";
+  type: string;
+}
+
+export interface Platform {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: number;
+  moveSpeed?: number;
+  moveRange?: number;
+  moveOffset?: number;
+  currentX: number; // Current animated position
+}
+
+interface GameState {
+  characters: Character[];
+  enemies: Enemy[]; // NEW: Enemy state
+  platforms: Platform[]; // NEW: Platform state
 }
 
 interface GameActions {
@@ -48,6 +62,14 @@ interface GameActions {
     senderId?: string
   ) => void;
   removeEnemy: (enemyId: string, senderId?: string) => void;
+
+  // NEW actions for platform management
+  updatePlatformPosition: (
+    platformId: string,
+    x: number,
+    senderId?: string
+  ) => void;
+  addPlatform: (platform: Platform, senderId?: string) => void;
 
   // Keep these actions
   cycleMyColor: (senderId?: string) => void;
@@ -92,7 +114,14 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
         health: 100,
         type: "patrol",
       },
+      {
+        id: "enemy-3",
+        position: { x: 700, y: 500 },
+        health: 100,
+        type: "patrol",
+      },
     ],
+    platforms: [], // Initialize empty platforms array
   },
   (set, get) => ({
     updatePlayerState: (
@@ -117,7 +146,7 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
         characters: state.characters.map((char) =>
           char.id === characterId
             ? {
-                ...char,
+                ...char, // Preserve all existing properties including color
                 position,
                 velocity,
                 isOnGround,
@@ -158,9 +187,13 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
       }));
     },
 
-    cycleMyColor: () => {
-      const myId = get().clientId; // `get()` is automatically typed correctly!
+    cycleMyColor: (senderId?: string) => {
+      const myId = senderId || get().clientId;
       if (!myId) return;
+
+      // Allow both client and server to cycle colors
+      // Client can change their own color, server can validate
+      // senderId parameter is needed for proper network dispatching
 
       set((state) => ({
         characters: state.characters.map((char) => {
@@ -254,6 +287,29 @@ const gameStoreInitializer = createInitializer<GameState, GameActions>(
 
       set((state) => ({
         enemies: state.enemies.filter((enemy) => enemy.id !== enemyId),
+      }));
+    },
+
+    // NEW: Platform management actions
+    updatePlatformPosition: (
+      platformId: string,
+      x: number,
+      senderId?: string
+    ) => {
+      if (senderId !== "server") return; // Only server can update platforms
+
+      set((state) => ({
+        platforms: state.platforms.map((platform) =>
+          platform.id === platformId ? { ...platform, currentX: x } : platform
+        ),
+      }));
+    },
+
+    addPlatform: (platform: Platform, senderId?: string) => {
+      if (senderId !== "server") return; // Only server can add platforms
+
+      set((state) => ({
+        platforms: [...state.platforms, platform],
       }));
     },
   })

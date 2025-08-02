@@ -9,6 +9,7 @@ export type ControllerOptions = {
   simulatedLatencyMs: number;
   serverTick?: (storeController: StoreController<any>) => void;
   serverTickRate?: number;
+  serverTickEnabled?: boolean; // NEW: Control server tick system
 };
 
 export class StoreController<
@@ -42,6 +43,13 @@ export class StoreController<
 
   private startServerTickLoop(): void {
     if (!this.userTickFunction) return;
+
+    // Always run at least one tick for initialization
+    this.userTickFunction(this);
+
+    // Only continue ticking if enabled
+    if (this.options.serverTickEnabled === false) return;
+
     const tickRate = this.options.serverTickRate || 1000;
     this.serverTickInterval = setInterval(() => {
       this.userTickFunction?.(this);
@@ -80,10 +88,19 @@ export class StoreController<
       return [];
     }
 
+    console.log(
+      `[StoreController] Dispatching ${actionName} from ${senderId} with args:`,
+      args
+    );
     actionToRun(...args, senderId);
 
     if (this.lastPatches.length > 0) {
+      console.log(
+        `[StoreController] Emitting state-changed with ${this.lastPatches.length} patches`
+      );
       this.emit("state-changed", this.lastPatches);
+    } else {
+      console.log(`[StoreController] No patches generated for ${actionName}`);
     }
 
     return this.lastPatches;

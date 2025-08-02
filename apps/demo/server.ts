@@ -2,6 +2,7 @@
 
 import { createServer } from "@zustand-sync/server";
 import { gameStoreInitializer } from "./src/common/store";
+import { PLATFORMS } from "./src/common/world-constants";
 
 // Helper functions for enemy AI
 function isAtTarget(
@@ -32,6 +33,26 @@ function moveTowards(
   };
 }
 
+// Helper function for platform movement
+function calculatePlatformPosition(
+  platform: {
+    x: number;
+    moveSpeed?: number;
+    moveRange?: number;
+  },
+  time: number
+) {
+  if (!platform.moveSpeed || !platform.moveRange) {
+    return platform.x;
+  }
+
+  const centerX = platform.x;
+  const offset =
+    Math.sin(time * platform.moveSpeed * 0.001) * platform.moveRange;
+
+  return centerX + offset;
+}
+
 // 3. Configure the server with the new generic tick system!
 const { server } = createServer({
   initializer: gameStoreInitializer,
@@ -40,16 +61,47 @@ const { server } = createServer({
   serverTick: (storeController) => {
     // This function is the new home for our AI logic.
     const state = storeController.getState();
+    const currentTime = Date.now();
 
-    console.log("⏱️ [ServerTick] Starting tick...");
-    console.log("⏱️ [ServerTick] Current state:", {
-      enemiesCount: state.enemies?.length || 0,
-      charactersCount: state.characters?.length || 0,
-    });
+    // Initialize platforms if they don't exist
+    if (!state.platforms || state.platforms.length === 0) {
+      const platformData = PLATFORMS.map((platform, index) => ({
+        id: `platform-${index}`,
+        x: platform.x,
+        y: platform.y,
+        width: platform.width,
+        height: platform.height,
+        color: platform.color,
+        moveSpeed: platform.moveSpeed,
+        moveRange: platform.moveRange,
+        moveOffset: platform.moveOffset,
+        currentX: platform.x,
+      }));
+
+      // Add platforms to the store
+      platformData.forEach((platform) => {
+        storeController.dispatchSync("addPlatform", [platform], "server");
+      });
+    }
+
+    // Update moving platforms
+    if (state.platforms && state.platforms.length > 0) {
+      for (const platform of state.platforms) {
+        if (platform.moveSpeed && platform.moveRange) {
+          const newX = calculatePlatformPosition(platform, currentTime);
+          if (Math.abs(platform.currentX - newX) > 0.1) {
+            storeController.dispatchSync(
+              "updatePlatformPosition",
+              [platform.id, newX],
+              "server"
+            );
+          }
+        }
+      }
+    }
 
     // Spawn enemies periodically if there aren't enough
     if (!state.enemies || state.enemies.length < 3) {
-      console.log("⏱️ [ServerTick] Spawning enemy...");
       const enemyId = `enemy-${Date.now()}-${Math.random()
         .toString(36)
         .substr(2, 9)}`;
@@ -57,34 +109,18 @@ const { server } = createServer({
         x: Math.random() * 800,
         y: Math.random() * 600,
       };
-      console.log("⏱️ [ServerTick] Spawn details:", { enemyId, spawnPosition });
       storeController.dispatchSync(
         "spawnEnemy",
         [enemyId, spawnPosition, "patrol"],
         "server"
       );
-      console.log("⏱️ [ServerTick] Spawn dispatch completed");
-    } else {
-      console.log(
-        "⏱️ [ServerTick] No spawning needed, enemy count:",
-        state.enemies.length
-      );
     }
 
     if (!state.enemies || state.enemies.length === 0) {
-      console.log("⏱️ [ServerTick] No enemies to process");
       return;
     }
 
-    console.log("⏱️ [ServerTick] Processing", state.enemies.length, "enemies");
     for (const enemy of state.enemies) {
-      console.log(
-        "⏱️ [ServerTick] Processing enemy:",
-        enemy.id,
-        "at",
-        enemy.position
-      );
-
       // Simple "patrol" AI logic
       if (
         !enemy.patrolTarget ||
@@ -94,41 +130,27 @@ const { server } = createServer({
           x: enemy.position.x + (Math.random() - 0.5) * 200,
           y: enemy.position.y,
         };
-        console.log(
-          "⏱️ [ServerTick] Setting new patrol target for",
-          enemy.id,
-          ":",
-          newTarget
-        );
         storeController.dispatchSync(
           "updateEnemyState",
           [enemy.id, { patrolTarget: newTarget }],
           "server"
         );
-        console.log("⏱️ [ServerTick] Patrol target update completed");
       } else {
         const newPosition = moveTowards(enemy.position, enemy.patrolTarget);
-        console.log(
-          "⏱️ [ServerTick] Moving enemy",
-          enemy.id,
-          "from",
-          enemy.position,
-          "to",
-          newPosition
-        );
         storeController.dispatchSync(
           "updateEnemyState",
           [enemy.id, { position: newPosition }],
           "server"
         );
-        console.log("⏱️ [ServerTick] Position update completed");
       }
     }
-    console.log("⏱️ [ServerTick] Tick completed");
   },
 
   // Optional: Configure the tick rate in milliseconds.
-  serverTickRate: 500, // 1 tick per second
+  serverTickRate: 33, // 30 ticks per second
+
+  // NEW: Control server tick system
+  serverTickEnabled: true, // Set to false to freeze server time
 
   // This is how a developer enables the latency simulation.
   // In a real project, you might control this with an environment variable.
