@@ -22,6 +22,9 @@ export type GameState = SyncedState & {
     ) => void;
     addCharacter: (socketId: string) => void;
     removeCharacter: (socketId: string) => void;
+
+    // --- RENAME AND CHANGE THIS LINE ---
+    cycleMyColor: (senderId?: string) => void;
   };
 };
 

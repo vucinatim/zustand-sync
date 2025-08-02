@@ -12,6 +12,13 @@ function App() {
   const isInstructionsOpen = useUIStore((state) => state.isInstructionsOpen);
   const uiActions = useUIStore((state) => state.actions);
 
+  // --- SIMPLIFY THIS HANDLER ---
+  const handleColorChange = () => {
+    // The UI's job is now incredibly simple. It just says "I want to cycle my color."
+    // It doesn't need to know the colors or calculate the next one.
+    gameActions.cycleMyColor();
+  };
+
   // Keyboard controls for character movement
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -115,6 +122,14 @@ function App() {
             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Reset Positions
+          </button>
+
+          {/* --- ADD THIS NEW BUTTON --- */}
+          <button
+            onClick={handleColorChange}
+            className="mt-2 w-full bg-teal-600 hover:bg-teal-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            Change My Color
           </button>
         </div>
 

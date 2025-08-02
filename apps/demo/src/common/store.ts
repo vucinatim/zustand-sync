@@ -6,8 +6,21 @@ import { create } from "zustand"; // Import the original `create`
 import { createSyncedStore } from "@zustand-sync/client";
 import type { GameState, UIState } from "./types";
 
+// This list is now the "source of truth" used by the server,
+// and the "prediction guide" used by the client.
+const availableColors = [
+  "bg-red-400",
+  "bg-blue-400",
+  "bg-green-400",
+  "bg-yellow-400",
+  "bg-purple-400",
+  "bg-pink-400",
+  "bg-indigo-400",
+  "bg-teal-400",
+];
+
 // 1. Define the initializer function. This is our complete isomorphic blueprint.
-export const gameStoreInitializer = (set: any) => ({
+export const gameStoreInitializer = (set: any, get: any) => ({
   characters: [],
   actions: {
     // --- Actions triggered by server events ---
@@ -63,6 +76,27 @@ export const gameStoreInitializer = (set: any) => ({
 
           const char = draft.characters.find((c) => c.id === characterId);
           if (char) char.position = newPosition;
+        })
+      );
+    },
+
+    // --- RENAME AND REWRITE THIS ACTION ---
+    cycleMyColor: (senderId?: string) => {
+      set(
+        produce((draft: GameState) => {
+          // Identify the character to change. On the server, it's the senderId.
+          // On the client, it's the clientId from the store's state.
+          const characterId = senderId || get().clientId;
+          if (!characterId) return;
+
+          const char = draft.characters.find((c) => c.id === characterId);
+          if (char) {
+            // This logic now runs on BOTH the client (as a prediction)
+            // and the server (as the authority).
+            const currentIndex = availableColors.indexOf(char.color);
+            const nextIndex = (currentIndex + 1) % availableColors.length;
+            char.color = availableColors[nextIndex];
+          }
         })
       );
     },
