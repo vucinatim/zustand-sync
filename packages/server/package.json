@@ -2,12 +2,12 @@
   "name": "@zustand-sync/server",
   "version": "0.1.0",
   "type": "module",
-  "main": "dist/factory.js",
-  "types": "dist/factory.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/factory.js",
-      "types": "./dist/factory.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
@@ -16,12 +16,10 @@
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.8.1",
-    "cors": "^2.8.5",
-    "zustand": "^4.5.2",
-    "immer": "^10.1.1"
+    "immer": "^10.1.1",
+    "@zustand-sync/core": "workspace:*"
   },
-  "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/cors": "^2.8.17"
+  "peerDependencies": {
+    "zustand": ">=4.0.0"
   }
 }

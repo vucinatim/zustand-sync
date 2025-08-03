@@ -3,9 +3,12 @@
   "compilerOptions": {
     "outDir": "./dist",
     "noEmit": false,
-    "module": "ESNext",
-    "moduleResolution": "bundler"
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
   },
   "include": ["server.ts", "src/common/**/*.ts"],
-  "references": [{ "path": "../../packages/server" }]
+  "references": [
+    { "path": "../../packages/server" },
+    { "path": "../../packages/client" }
+  ]
 }

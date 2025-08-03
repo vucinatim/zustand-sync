@@ -1,14 +1,21 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { produce, applyPatches, enablePatches, type Patch } from "immer";
-import { io, type Socket } from "socket.io-client";
+import { io } from "socket.io-client";
+import type { Socket as IoSocket } from "socket.io-client";
 import type { StateCreator, StoreApi, StoreMutatorIdentifier } from "zustand";
 import type { LocalState, SyncedStoreApi } from "@zustand-sync/core";
+
+/** Re-export a *portable* alias that points at the public module path. */
+export type Socket = IoSocket;
+
+/** Keep implementation details private. */
+type InternalSocket = IoSocket;
 
 enablePatches();
 
 export type FrameworkState = LocalState & {
-  _socket: Socket | null;
+  _socket: InternalSocket | null;
   _roomId: string | null;
   api: SyncedStoreApi;
 };

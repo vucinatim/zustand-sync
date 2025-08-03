@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter @zustand-sync/demo build",
+    "build": "tsc -b packages/client packages/server && cd apps/demo && pnpm build",
     "start": "cd apps/demo && pnpm start",
     "dev": "pnpm --filter @zustand-sync/demo dev"
   },
