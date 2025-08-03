@@ -3,10 +3,8 @@
   "compilerOptions": {
     "outDir": "./dist",
     "noEmit": false,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "noImplicitAny": false,
-    "strict": false
+    "module": "ESNext",
+    "moduleResolution": "bundler"
   },
   "include": ["server.ts", "src/common/**/*.ts"],
   "references": [{ "path": "../../packages/server" }]
