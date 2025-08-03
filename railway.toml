@@ -3,5 +3,6 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "cd apps/demo && pnpm start"
+buildCommand = "cd apps/demo && pnpm build"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10 
