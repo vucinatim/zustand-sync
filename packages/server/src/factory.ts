@@ -7,6 +7,8 @@ import { RoomManager } from "./RoomManager";
 import { StoreController } from "./StoreController";
 import { StoreApi } from "zustand";
 
+export const DEFAULT_SERVER_TICK_RATE = 1000 / 30;
+
 export type ServerConfig = {
   initializer: (set: any, get: any, store: StoreApi<any>) => any;
   serverTick?: (storeController: StoreController<any>) => void;
@@ -29,7 +31,7 @@ export function createServer(config: ServerConfig) {
   const roomManager = new RoomManager(io, config.initializer, {
     simulatedLatencyMs: config.debug?.simulatedLatencyMs || 0,
     serverTick: config.serverTick,
-    serverTickRate: config.serverTickRate || 1000,
+    serverTickRate: config.serverTickRate || DEFAULT_SERVER_TICK_RATE,
     serverTickEnabled: config.serverTickEnabled !== false, // Default to true if not specified
   });
 

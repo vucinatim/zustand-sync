@@ -17,6 +17,7 @@ const DEFAULT_ROOM_ID = "default-room";
 
 export type SyncOptions = {
   serverUrl?: string;
+  excludeActions?: string[]; // <-- NEW: Actions that should not be sent over the network
 };
 
 export const sync =
@@ -103,15 +104,32 @@ export const sync =
 
     for (const actionName in userActions) {
       const originalAction = userActions[actionName];
-      (wrappedActions as any)[actionName] = (
-        ...args: Parameters<typeof originalAction>
-      ) => {
-        originalAction(...args);
-        const { _socket, _roomId } = get();
-        if (_socket && _roomId) {
-          _socket.emit("client:dispatch_command", _roomId, actionName, ...args);
-        }
-      };
+
+      // Check if the action is excluded from networking
+      if (options?.excludeActions?.includes(actionName)) {
+        // This is a local-only action. Just call the original function.
+        (wrappedActions as any)[actionName] = (
+          ...args: Parameters<typeof originalAction>
+        ) => {
+          originalAction(...args);
+        };
+      } else {
+        // This is a networked action. Keep the existing logic.
+        (wrappedActions as any)[actionName] = (
+          ...args: Parameters<typeof originalAction>
+        ) => {
+          originalAction(...args);
+          const { _socket, _roomId } = get();
+          if (_socket && _roomId) {
+            _socket.emit(
+              "client:dispatch_command",
+              _roomId,
+              actionName,
+              ...args
+            );
+          }
+        };
+      }
     }
 
     const originalSubscribe = store.subscribe;

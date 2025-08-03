@@ -1,5 +1,5 @@
 import { createInitializer } from "@zustand-sync/client";
-import type { Character } from "./types";
+import type { Character, CharacterInput } from "./types";
 import { PHYSICS_CONSTANTS } from "./physics-constants";
 import { PLATFORMS } from "./world-constants";
 
@@ -69,17 +69,12 @@ export interface GameActions {
   // NEW: Update server time
   updateServerTime: (time: number, senderId?: string) => void;
 
-  // NEW action for physics-based movement
-  updatePlayerState: (
+  // --- NEW ACTION ---
+  setInputState: (
     characterId: string,
-    position: { x: number; y: number },
-    velocity: { x: number; y: number },
-    isOnGround: boolean,
+    input: Partial<CharacterInput>, // Send only the changes
     senderId?: string
   ) => void;
-
-  // NEW action for jumping
-  jump: (characterId: string, senderId?: string) => void;
 
   // NEW actions for enemy management
   spawnEnemy: (
@@ -123,9 +118,6 @@ const COLORS = [
 const INITIAL_POSITIONS: { [key: string]: { x: number; y: number } } = {};
 
 // 3. Create the store initializer.
-// It uses Zustand's `StateCreator` type for `GameState`. This is standard practice.
-// The `get` function here will only see `GameState`. Our middleware correctly
-// provides the `clientId` from the full state when `cycleMyColor` needs it.
 export const gameStoreInitializer = createInitializer<GameState, GameActions>(
   {
     // Argument 1: The initial state
@@ -133,19 +125,19 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
     enemies: [
       {
         id: "enemy-1",
-        position: { x: 900, y: 2800 }, // Centered (was 300, 500)
+        position: { x: 900, y: 2800 },
         health: 100,
         type: "patrol",
       },
       {
         id: "enemy-2",
-        position: { x: 1100, y: 2800 }, // Centered (was 500, 500)
+        position: { x: 1100, y: 2800 },
         health: 100,
         type: "patrol",
       },
       {
         id: "enemy-3",
-        position: { x: 1000, y: 2800 }, // Centered (was 700, 500)
+        position: { x: 1000, y: 2800 },
         health: 100,
         type: "patrol",
       },
@@ -162,32 +154,28 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
       moveOffset: platform.moveOffset,
       currentX: platform.x,
     })),
-    serverTime: Date.now(), // NEW: Initialize with current time
+    serverTime: Date.now(),
   },
   (set, get) => ({
     tick: (deltaTime: number, senderId?: string) => {
       const isServer = !!senderId;
       const state = get();
 
-      // --- Platform Logic (from old serverTick) ---
+      // --- Platform Logic ---
       const updatedPlatforms = state.platforms.map((platform) => {
         if (!platform.moveSpeed || !platform.moveRange) return platform;
-
-        const currentTime = state.serverTime; // Use server time instead of Date.now()
+        const currentTime = state.serverTime;
         const centerX = platform.x;
         const offset =
           Math.sin(currentTime * platform.moveSpeed * 0.001) *
           platform.moveRange;
         const newX = centerX + offset;
-
         return { ...platform, currentX: newX };
       });
 
-      // --- Enemy AI Logic (from old serverTick) ---
+      // --- Enemy AI Logic ---
       const updatedEnemies = state.enemies.map((enemy) => {
         if (isServer) {
-          // Only run AI logic on the server
-          // Simple "patrol" AI logic
           if (
             !enemy.patrolTarget ||
             isAtTarget(enemy.position, enemy.patrolTarget)
@@ -202,14 +190,35 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
             return { ...enemy, position: newPosition };
           }
         }
-        return enemy; // On client, just return the enemy as is for now
+        return enemy;
       });
 
-      // --- Player Physics Logic (from old GameController) ---
+      // --- PLAYER PHYSICS LOGIC (REFACTORED) ---
       const updatedCharacters = state.characters.map((char) => {
+        // --- IMMUTABILITY FIX ---
+        // 1. Create a mutable copy of the inputs for the new state object.
+        const newInputs = { ...char.inputs };
+
+        // 2. Determine Target Velocity from INPUTS
+        let targetVelocityX = 0;
+        if (char.inputs.left) targetVelocityX = -PHYSICS_CONSTANTS.MOVE_SPEED;
+        if (char.inputs.right) targetVelocityX = PHYSICS_CONSTANTS.MOVE_SPEED;
+
+        const newVelocityX =
+          char.velocity.x + (targetVelocityX - char.velocity.x) * 0.2;
+
+        // 3. Handle Jump from INPUTS
+        let newVelocityY = char.velocity.y;
+        if (char.inputs.jump) {
+          newVelocityY = PHYSICS_CONSTANTS.JUMP_VELOCITY;
+        }
+
+        // 5. Apply Gravity and calculate new position
+        newVelocityY += PHYSICS_CONSTANTS.GRAVITY * deltaTime;
+
         const newVelocity = {
-          ...char.velocity,
-          y: char.velocity.y + PHYSICS_CONSTANTS.GRAVITY * deltaTime,
+          x: newVelocityX,
+          y: newVelocityY,
         };
 
         const newPosition = {
@@ -219,7 +228,7 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
 
         let newIsOnGround = false;
 
-        // Simple collision detection with platforms
+        // 6. Collision detection with platforms
         for (const platform of state.platforms) {
           const platformX = platform.currentX || platform.x;
           if (
@@ -235,15 +244,17 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
           }
         }
 
-        // World bounds
+        // 7. World bounds
         if (newPosition.x < 24) newPosition.x = 24;
         if (newPosition.x > 2000 - 24) newPosition.x = 2000 - 24;
 
+        // 8. Return the new character object with all updated properties
         return {
           ...char,
           position: newPosition,
           velocity: newVelocity,
           isOnGround: newIsOnGround,
+          inputs: newInputs, // Use the (potentially) modified copy
         };
       });
 
@@ -255,65 +266,15 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
       });
     },
 
-    updatePlayerState: (
-      characterId,
-      position,
-      velocity,
-      isOnGround,
-      senderId
-    ) => {
+    setInputState: (characterId, input, senderId) => {
       const isServer = !!senderId;
-
-      if (isServer) {
-        const character = get().characters.find((c) => c.id === characterId);
-        if (!character) return;
-
-        // TODO: Add movement validation back later if needed
-        // For now, trust the client for responsive movement
+      if (isServer && senderId !== characterId) {
+        return;
       }
-
-      // SHARED LOGIC: Update the character's full state.
       set((state) => ({
         characters: state.characters.map((char) =>
           char.id === characterId
-            ? {
-                ...char, // Preserve all existing properties including color
-                position,
-                velocity,
-                isOnGround,
-                lastMoveTimestamp: isServer
-                  ? Date.now()
-                  : char.lastMoveTimestamp,
-              }
-            : char
-        ),
-      }));
-    },
-
-    jump: (characterId: string, senderId?: string) => {
-      const isServer = !!senderId;
-
-      if (isServer) {
-        const character = get().characters.find((c) => c.id === characterId);
-        // VALIDATION: Player must be on the ground to jump.
-        if (!character || !character.isOnGround) {
-          // For testing the game we allow jumping from the air for now
-          // return; // Reject the action.
-        }
-      }
-
-      // SHARED LOGIC: Apply jump velocity.
-      set((state) => ({
-        characters: state.characters.map((char) =>
-          char.id === characterId
-            ? {
-                ...char,
-                velocity: {
-                  ...char.velocity,
-                  y: PHYSICS_CONSTANTS.JUMP_VELOCITY,
-                },
-                isOnGround: false,
-              }
+            ? { ...char, inputs: { ...char.inputs, ...input } }
             : char
         ),
       }));
@@ -322,11 +283,6 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
     cycleMyColor: (senderId?: string) => {
       const myId = senderId || get().clientId;
       if (!myId) return;
-
-      // Allow both client and server to cycle colors
-      // Client can change their own color, server can validate
-      // senderId parameter is needed for proper network dispatching
-
       set((state) => ({
         characters: state.characters.map((char) => {
           if (char.id !== myId) return char;
@@ -353,8 +309,8 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
       if (get().characters.some((c) => c.id === id)) return;
 
       const newPosition = {
-        x: Math.floor(Math.random() * 400) + 800, // Center in world (800-1200 range)
-        y: Math.floor(Math.random() * 200) + 2800, // Near ground level
+        x: Math.floor(Math.random() * 400) + 800,
+        y: Math.floor(Math.random() * 200) + 2800,
       };
       INITIAL_POSITIONS[id] = newPosition;
 
@@ -363,10 +319,10 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
         name: `Player-${id.substring(0, 4)}`,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         position: newPosition,
-        // --- NEW PROPERTIES ---
         velocity: { x: 0, y: 0 },
         isOnGround: false,
         lastMoveTimestamp: Date.now(),
+        inputs: { left: false, right: false, jump: false },
       };
       set((state) => ({ characters: [...state.characters, newCharacter] }));
     },
@@ -379,22 +335,19 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
       }));
     },
 
-    // NEW: Enemy management actions
     spawnEnemy: (
       enemyId: string,
       position: { x: number; y: number },
       type: "patrol" | "chase" = "patrol",
       senderId?: string
     ) => {
-      if (senderId !== "server") return; // Only server can spawn enemies
-
+      if (senderId !== "server") return;
       const newEnemy: Enemy = {
         id: enemyId,
         position,
         health: 100,
         type,
       };
-
       set((state) => ({
         enemies: [...state.enemies, newEnemy],
       }));
@@ -405,8 +358,7 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
       updates: Partial<Enemy>,
       senderId?: string
     ) => {
-      if (senderId !== "server") return; // Only server can update enemies
-
+      if (senderId !== "server") return;
       set((state) => ({
         enemies: state.enemies.map((enemy) =>
           enemy.id === enemyId ? { ...enemy, ...updates } : enemy
@@ -415,21 +367,18 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
     },
 
     removeEnemy: (enemyId: string, senderId?: string) => {
-      if (senderId) return; // Only server can remove enemies
-
+      if (senderId) return;
       set((state) => ({
         enemies: state.enemies.filter((enemy) => enemy.id !== enemyId),
       }));
     },
 
-    // NEW: Platform management actions
     updatePlatformPosition: (
       platformId: string,
       x: number,
       senderId?: string
     ) => {
-      if (senderId !== "server") return; // Only server can update platforms
-
+      if (senderId !== "server") return;
       set((state) => ({
         platforms: state.platforms.map((platform) =>
           platform.id === platformId ? { ...platform, currentX: x } : platform
@@ -438,16 +387,14 @@ export const gameStoreInitializer = createInitializer<GameState, GameActions>(
     },
 
     addPlatform: (platform: Platform, senderId?: string) => {
-      if (senderId !== "server") return; // Only server can add platforms
-
+      if (senderId !== "server") return;
       set((state) => ({
         platforms: [...state.platforms, platform],
       }));
     },
 
-    // NEW: Update server time
     updateServerTime: (time: number, senderId?: string) => {
-      if (senderId !== "server") return; // Only server can update server time
+      if (senderId !== "server") return;
       set({ serverTime: time });
     },
   })

@@ -2,6 +2,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { produceWithPatches, enablePatches, type Patch } from "immer";
 import { EventEmitter } from "events";
+import { DEFAULT_SERVER_TICK_RATE } from "./factory";
 
 enablePatches();
 
@@ -50,7 +51,7 @@ export class StoreController<
     // Only continue ticking if enabled
     if (this.options.serverTickEnabled === false) return;
 
-    const tickRate = this.options.serverTickRate || 1000;
+    const tickRate = this.options.serverTickRate || DEFAULT_SERVER_TICK_RATE;
     this.serverTickInterval = setInterval(() => {
       this.userTickFunction?.(this);
     }, tickRate);

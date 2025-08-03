@@ -23,7 +23,7 @@ const { server } = createServer({
   },
 
   // Optional: Configure the tick rate in milliseconds.
-  serverTickRate: 33, // 30 ticks per second
+  serverTickRate: 1000 / 60, // 60 ticks per second
 
   // NEW: Control server tick system
   serverTickEnabled: true, // Set to false to freeze server time
