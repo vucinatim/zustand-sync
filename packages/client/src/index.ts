@@ -9,13 +9,10 @@ import type { LocalState, SyncedStoreApi } from "@zustand-sync/core";
 /** Re-export a *portable* alias that points at the public module path. */
 export type Socket = IoSocket;
 
-/** Keep implementation details private. */
-type InternalSocket = IoSocket;
-
 enablePatches();
 
 export type FrameworkState = LocalState & {
-  _socket: InternalSocket | null;
+  _socket: Socket | null;
   _roomId: string | null;
   api: SyncedStoreApi;
 };
