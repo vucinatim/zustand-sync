@@ -1,216 +1,350 @@
-# Zustand-Sync Project Structure
+# **Complete TypeScript Configuration & Package.json Files**
 
-## Overview
-This is a monorepo containing a real-time multiplayer game synchronization framework built with Zustand, Socket.IO, and TypeScript. The project uses a client-server architecture with authoritative server simulation and client-side prediction.
+## **📁 Root Monorepo**
 
-## Root Structure
-```
-zustand-sync/
-├── apps/                    # Application implementations
-│   └── demo/               # Demo multiplayer game
-├── packages/               # Core framework packages
-│   ├── client/            # Client-side sync middleware
-│   ├── core/              # Shared types and utilities
-│   └── server/            # Server-side sync framework
-├── eslint.config.js       # ESLint configuration
-├── package.json           # Root package.json (monorepo)
-├── pnpm-lock.yaml        # pnpm lock file
-├── pnpm-workspace.yaml   # pnpm workspace configuration
-├── README.md             # Project documentation
-└── tsconfig files        # TypeScript configurations
-```
-
-## Apps Directory
-
-### `apps/demo/` - Demo Multiplayer Game
-A complete multiplayer platformer game demonstrating the zustand-sync framework.
-
-#### Structure:
-```
-apps/demo/
-├── index.html             # Main HTML entry point
-├── package.json           # Demo app dependencies
-├── server.ts             # Demo server implementation
-├── tsconfig files        # TypeScript configurations
-├── vite.config.ts        # Vite build configuration
-├── public/               # Static assets
-│   └── vite.svg         # Vite logo
-└── src/                  # Source code
-    ├── main.tsx         # React app entry point
-    ├── App.tsx          # Main React component
-    ├── style.css        # Global styles
-    ├── vite-env.d.ts   # Vite type definitions
-    ├── assets/          # Static assets
-    │   └── react.svg   # React logo
-    ├── common/          # Shared game logic
-    │   ├── initializer.ts    # Game state and actions
-    │   ├── store.ts          # Zustand store creation
-    │   ├── types.ts          # TypeScript type definitions
-    │   ├── physics-constants.ts  # Physics configuration
-    │   └── world-constants.ts     # World/level configuration
-    ├── components/      # React components
-    │   ├── Character.tsx      # Player character component
-    │   ├── Enemy.tsx          # Enemy entity component
-    │   ├── GameController.tsx # Game input and logic controller
-    │   ├── OverlayUI.tsx      # User interface overlay
-    │   └── World.tsx          # Game world/level component
-    ├── framework/       # Framework-specific code
-    └── hooks/           # Custom React hooks
-        └── useCamera.ts # Camera management hook
+### **package.json**
+```json
+{
+  "name": "zustand-sync-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -b packages/client packages/server && cd apps/demo && pnpm build",
+    "start": "cd apps/demo && pnpm start",
+    "dev": "pnpm --filter @zustand-sync/demo dev"
+  },
+  "pnpm": {
+    "overrides": {
+      "zustand": "5.0.7"
+    }
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "typescript": "~5.8.3"
+  }
+}
 ```
 
-#### Key Files:
-
-**`apps/demo/server.ts`**
-- Demo server implementation
-- Uses the zustand-sync server framework
-- Runs authoritative game simulation at 30 FPS
-- Handles client connections and state synchronization
-
-**`apps/demo/src/common/initializer.ts`**
-- Defines game state structure (characters, enemies, platforms)
-- Implements all game actions (tick, setInputState, etc.)
-- Contains isomorphic physics logic (runs on both client and server)
-- Handles input-based authoritative movement system
-
-**`apps/demo/src/common/store.ts`**
-- Creates the Zustand store with sync middleware
-- Configures client-side store with server connection
-- Excludes 'tick' action from networking (local-only prediction)
-
-**`apps/demo/src/components/GameController.tsx`**
-- Handles keyboard input and sends to server
-- Manages local input state tracking
-- Calls local tick for client-side prediction
-- Implements input-based movement system
-
-## Packages Directory
-
-### `packages/client/` - Client-Side Sync Framework
-TypeScript package providing client-side synchronization middleware for Zustand.
-
-#### Structure:
-```
-packages/client/
-├── package.json          # Package dependencies
-├── tsconfig.json         # TypeScript configuration
-├── tsconfig.tsbuildinfo  # TypeScript build cache
-└── src/
-    └── index.ts         # Main client sync middleware
+### **tsconfig.json**
+```json
+{
+  "files": [],
+  "references": [{ "path": "packages/client" }, { "path": "apps/demo" }]
+}
 ```
 
-**`packages/client/src/index.ts`**
-- Implements `sync()` middleware for Zustand stores
-- Handles WebSocket connections to server
-- Provides action wrapping for network synchronization
-- Supports `excludeActions` for local-only actions
-- Manages state patching and synchronization
-
-### `packages/core/` - Shared Core Types
-Contains shared TypeScript types and utilities used by both client and server.
-
-#### Structure:
-```
-packages/core/
-├── index.ts             # Exports shared types
-├── package.json         # Package dependencies
-└── tsconfig.json       # TypeScript configuration
-```
-
-**`packages/core/index.ts`**
-- Defines `LocalState` interface
-- Defines `SyncedStoreApi` interface
-- Exports shared types for client/server communication
-
-### `packages/server/` - Server-Side Sync Framework
-TypeScript package providing server-side synchronization framework.
-
-#### Structure:
-```
-packages/server/
-├── package.json          # Package dependencies
-├── tsconfig.json         # TypeScript configuration
-├── tsconfig.tsbuildinfo  # TypeScript build cache
-└── src/
-    ├── index.ts         # Main server framework exports
-    ├── factory.ts       # Server factory functions
-    ├── RoomManager.ts   # Room management and client handling
-    └── StoreController.ts # Store state management
+### **tsconfig.base.json**
+```json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  }
+}
 ```
 
-**`packages/server/src/index.ts`**
-- Exports server framework functions
-- Provides `createServer()` factory function
+### **tsconfig.app.json**
+```json
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["src"]
+}
+```
 
-**`packages/server/src/factory.ts`**
-- Implements server creation logic
-- Handles Socket.IO server setup
-- Manages room-based client connections
+### **tsconfig.server.json**
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "dist-server",
+    "noEmit": false
+  },
+  "include": ["src/server", "src/common"]
+}
+```
 
-**`packages/server/src/RoomManager.ts`**
-- Manages game rooms and client connections
-- Handles client join/leave events
-- Broadcasts state updates to room members
+---
 
-**`packages/server/src/StoreController.ts`**
-- Manages authoritative game state
-- Implements server tick loop
-- Handles state patching and broadcasting
-- Provides action dispatching for server logic
+## **📁 Apps/Demo**
 
-## Configuration Files
+### **package.json**
+```json
+{
+  "name": "@zustand-sync/demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.server.json && vite build --outDir dist/client",
+    "start": "node dist/server.js",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "dev:server": "tsx watch server.ts"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@pixi/react": "8.0.0-beta.25",
+    "@tailwindcss/vite": "^4.1.11",
+    "@zustand-sync/client": "workspace:*",
+    "@zustand-sync/core": "workspace:*",
+    "@zustand-sync/server": "workspace:*",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "immer": "^10.1.1",
+    "pixi.js": "^8.2.6",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "tailwindcss": "^4.1.11",
+    "zustand": "^5.0.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^9.30.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.3.0",
+    "ts-node-dev": "^2.0.0",
+    "tsx": "^4.20.3",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.35.1",
+    "vite": "^7.0.4"
+  }
+}
+```
 
-### Root Configuration
-- **`package.json`**: Monorepo configuration with workspace packages
-- **`pnpm-workspace.yaml`**: pnpm workspace configuration
-- **`eslint.config.js`**: ESLint rules for the entire project
-- **`tsconfig.json`**: Base TypeScript configuration
-- **`tsconfig.base.json`**: Shared TypeScript settings
-- **`tsconfig.app.json`**: App-specific TypeScript settings
-- **`tsconfig.server.json`**: Server-specific TypeScript settings
+### **tsconfig.json**
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "noEmit": true
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/client" },
+    { "path": "../../packages/core" }
+  ]
+}
+```
 
-### Package-Specific Configuration
-Each package has its own:
-- **`package.json`**: Dependencies and scripts
-- **`tsconfig.json`**: TypeScript configuration
-- **`tsconfig.tsbuildinfo`**: TypeScript build cache (generated)
+### **tsconfig.server.json**
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "noEmit": false,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "include": ["server.ts", "src/common/**/*.ts"],
+  "references": [
+    { "path": "../../packages/server" },
+    { "path": "../../packages/client" }
+  ]
+}
+```
 
-## Key Architectural Features
+### **tsconfig.node.json**
+```json
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["vite.config.ts"]
+}
+```
 
-### 1. Input-Based Authoritative Model
-- Clients send input state (left, right, jump) instead of position/velocity
-- Server runs authoritative physics simulation
-- Client-side prediction for responsive gameplay
-- `tick` action excluded from networking (local-only)
+---
 
-### 2. Isomorphic Game Logic
-- Same physics code runs on both client and server
-- Client predicts movement, server validates and corrects
-- Shared constants and types across client/server
+## **📁 Packages/Client**
 
-### 3. Real-Time Synchronization
-- Socket.IO for WebSocket communication
-- Immer for immutable state updates with patches
-- Optimized state patching to minimize network traffic
+### **package.json**
+```json
+{
+  "name": "@zustand-sync/client",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "immer": "^10.1.1",
+    "socket.io-client": "^4.8.1",
+    "@zustand-sync/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "zustand": ">=4.0.0"
+  }
+}
+```
 
-### 4. Modular Architecture
-- Separate packages for client, server, and shared code
-- Clean separation of concerns
-- Reusable framework components
+### **tsconfig.json**
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "include": ["src"]
+}
+```
 
-## Development Workflow
+---
 
-1. **Framework Development**: Work in `packages/` directory
-2. **Demo Development**: Work in `apps/demo/` directory
-3. **Build**: `pnpm build` compiles all packages
-4. **Development**: `pnpm dev` runs demo app with hot reload
-5. **Testing**: Demo app serves as integration test for framework
+## **📁 Packages/Server**
 
-## Technology Stack
+### **package.json**
+```json
+{
+  "name": "@zustand-sync/server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.8.1",
+    "immer": "^10.1.1",
+    "@zustand-sync/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "zustand": ">=4.0.0"
+  }
+}
+```
 
-- **Frontend**: React, PixiJS, Zustand
-- **Backend**: Node.js, Socket.IO
-- **Build Tools**: Vite, TypeScript, pnpm
-- **State Management**: Zustand with custom sync middleware
-- **Networking**: Socket.IO for real-time communication
-- **Immutable Updates**: Immer for state patching 
+### **tsconfig.json**
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext"
+  },
+  "include": ["src"]
+}
+```
+
+---
+
+## **📁 Packages/Core**
+
+### **package.json**
+```json
+{
+  "name": "@zustand-sync/core",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "types": "index.ts"
+}
+```
+
+### **tsconfig.json**
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "outDir": "dist" },
+  "include": ["."]
+}
+```
+
+---
+
+## **📊 Summary**
+
+| Package | TypeScript Configs | Package.json |
+|---------|-------------------|--------------|
+| **Root** | 4 configs | 1 file |
+| **Apps/Demo** | 3 configs | 1 file |
+| **Packages/Client** | 1 config | 1 file |
+| **Packages/Server** | 1 config | 1 file |
+| **Packages/Core** | 1 config | 1 file |
+| **Total** | **10 configs** | **5 files** |
+
+**Total Files: 15 configuration files** 
