@@ -1,10 +1,11 @@
 {
   "name": "zustand-sync-monorepo",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter @zustand-sync/demo dev",
-    "dev:server": "tsx watch apps/demo/server.ts",
-    "build": "pnpm --filter \"./packages/*\" build"
+    "build": "pnpm --filter @zustand-sync/demo build",
+    "start": "cd apps/demo && pnpm start",
+    "dev": "pnpm --filter @zustand-sync/demo dev"
   },
   "pnpm": {
     "overrides": {
@@ -12,7 +13,6 @@
     }
   },
   "devDependencies": {
-    "typescript": "^5.2.2",
-    "tsx": "^4.20.3"
+    "typescript": "~5.8.3"
   }
 }
