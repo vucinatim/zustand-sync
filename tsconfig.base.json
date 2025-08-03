@@ -12,6 +12,12 @@
     "composite": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@zustand-sync/core": ["packages/core/index.ts"],
+      "@zustand-sync/client": ["packages/client/src/index.ts"],
+      "@zustand-sync/server": ["packages/server/src/index.ts"]
+    }
   }
 }

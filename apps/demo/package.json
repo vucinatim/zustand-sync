@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.server.json && vite build --outDir dist/client",
+    "build": "pnpm run build:client",
     "build:client": "vite build --outDir dist/client",
     "start": "node dist/server.js",
     "lint": "eslint .",
