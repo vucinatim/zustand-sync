@@ -4,7 +4,9 @@
     "outDir": "./dist",
     "noEmit": false,
     "module": "NodeNext",
-    "moduleResolution": "NodeNext"
+    "moduleResolution": "NodeNext",
+    "noImplicitAny": false,
+    "strict": false
   },
   "include": ["server.ts", "src/common/**/*.ts"],
   "references": [{ "path": "../../packages/server" }]
