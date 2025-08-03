@@ -1,5 +1,5 @@
 import { useMemo, useRef, useEffect } from "react";
-import { useGameStore } from "../common/store";
+import { useGameStore } from "../store";
 
 export const useCamera = () => {
   const clientId = useGameStore((state) => state.clientId);

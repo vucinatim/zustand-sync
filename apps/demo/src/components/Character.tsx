@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import * as PIXI from "pixi.js";
-import type { Character as CharacterType } from "../common/types";
+import type { Character as CharacterType } from "../common/initializer";
 
 // A PixiJS component for rendering a single character
 export const PixiCharacter = ({ character }: { character: CharacterType }) => {

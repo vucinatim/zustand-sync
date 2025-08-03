@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import * as PIXI from "pixi.js";
-import { useGameStore } from "../common/store";
+import { useGameStore } from "../store";
 import { useCamera } from "../hooks/useCamera";
 
 // A PixiJS component for rendering the platforms and game world

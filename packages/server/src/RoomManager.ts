@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { StoreController, type ControllerOptions } from "./StoreController";
-import type { ServerConfig } from "./factory";
+import { StoreController, type ControllerOptions } from "./StoreController.js";
+import type { ServerConfig } from "./factory.js";
 import type { Server as SocketIoServer } from "socket.io"; // 1. Import Socket.IO Server type
 
 export class RoomManager {

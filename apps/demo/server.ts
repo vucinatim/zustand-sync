@@ -1,12 +1,20 @@
 import { createServer } from "@zustand-sync/server";
 // --- MODIFIED IMPORT ---
 // Import the pure logic, NOT the client-side store.
-import { gameStoreInitializer } from "./src/common/initializer";
+import { gameStoreInitializer } from "./src/common/initializer.js";
+import express from "express"; // Import express from the server package
+import path from "path";
+import { fileURLToPath } from "url";
 
-// 3. Configure the server with the new generic tick system!
+// --- Helper for ES Modules to get __dirname ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// --- Server Configuration ---
 let lastTickTime = Date.now();
 
-const { server } = createServer({
+const { server, app } = createServer({
+  // Destructure the 'app' instance
   initializer: gameStoreInitializer,
 
   // NEW: Provide a custom function for all server-side loop logic.
@@ -36,10 +44,24 @@ const { server } = createServer({
   // },
 });
 
-// 4. Start the server
-const PORT = 3001;
+// --- Serve Static Files from Vite Build ---
+// The 'dist/client' is the output from 'vite build'
+const clientBuildPath = path.join(__dirname, "..", "dist/client");
+console.log("Client build path:", clientBuildPath);
+console.log("__dirname:", __dirname);
+app.use(express.static(clientBuildPath));
+
+// --- API routes or other server logic would go here ---
+
+// --- Handle all other routes by serving the index.html ---
+// This is crucial for client-side routing to work
+app.get("*", (req, res) => {
+  res.sendFile(path.join(clientBuildPath, "index.html"));
+});
+
+// --- Start the Server ---
+// Railway provides the PORT environment variable automatically
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
-  console.log(
-    `Server is listening on port ${PORT} with generic tick system enabled.`
-  );
+  console.log(`Server is listening on port ${PORT}`);
 });

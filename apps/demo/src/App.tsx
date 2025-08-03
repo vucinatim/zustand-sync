@@ -1,6 +1,6 @@
 import { Application, extend } from "@pixi/react";
 import * as PIXI from "pixi.js";
-import { useGameStore } from "./common/store";
+import { useGameStore } from "./store";
 
 // Import components
 import { PixiCharacter } from "./components/Character";

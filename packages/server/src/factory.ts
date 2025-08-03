@@ -2,9 +2,8 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
-import cors from "cors";
-import { RoomManager } from "./RoomManager";
-import { StoreController } from "./StoreController";
+import { RoomManager } from "./RoomManager.js";
+import { StoreController } from "./StoreController.js";
 import { StoreApi } from "zustand";
 
 export const DEFAULT_SERVER_TICK_RATE = 1000 / 30;
@@ -19,13 +18,18 @@ export type ServerConfig = {
   };
 };
 
-export function createServer(config: ServerConfig) {
+export function createServer(config: ServerConfig): {
+  server: http.Server;
+  app: express.Express;
+} {
   const app = express();
-  app.use(cors());
+  // IMPORTANT: Remove the cors() middleware here.
+  // Since server and client are on the same origin, it's not needed
+  // and can sometimes cause issues with Socket.IO.
+  // app.use(cors());
+
   const server = http.createServer(app);
-  const io = new Server(server, {
-    cors: { origin: "*" },
-  });
+  const io = new Server(server); // No CORS needed for same-origin
 
   // THE FIX: Pass the `io` instance to the RoomManager
   const roomManager = new RoomManager(io, config.initializer, {
@@ -84,5 +88,6 @@ export function createServer(config: ServerConfig) {
     });
   });
 
-  return { server };
+  // Expose both the http server and the express app
+  return { server, app };
 }

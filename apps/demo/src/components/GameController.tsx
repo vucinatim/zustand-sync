@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTick } from "@pixi/react";
-import { useGameStore, useUIStore } from "../common/store";
+import { useGameStore, useUIStore } from "../store";
 
 // Game Logic Controller Component
 export const GameController = () => {

@@ -1,7 +1,6 @@
 import { createInitializer } from "@zustand-sync/client";
-import type { Character, CharacterInput } from "./types";
-import { PHYSICS_CONSTANTS } from "./physics-constants";
-import { PLATFORMS } from "./world-constants";
+import { PHYSICS_CONSTANTS } from "./physics-constants.js";
+import { PLATFORMS } from "./world-constants.js";
 
 // Helper functions for enemy AI (moved from server.ts)
 function isAtTarget(
@@ -30,6 +29,24 @@ function moveTowards(
     x: pos.x + moveX,
     y: pos.y + moveY,
   };
+}
+
+export interface CharacterInput {
+  left: boolean;
+  right: boolean;
+  jump: boolean; // We can handle jump intent here too
+}
+
+export interface Character {
+  id: string;
+  name: string;
+  color: string;
+  position: { x: number; y: number };
+  // --- NEW PROPERTIES ---
+  velocity: { x: number; y: number };
+  isOnGround: boolean;
+  lastMoveTimestamp: number; // For server validation
+  inputs: CharacterInput; // <-- NEW PROPERTY
 }
 
 // 1. Define the user's state and actions as if it were a normal store.

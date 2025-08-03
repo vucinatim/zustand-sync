@@ -1,4 +1,4 @@
-import { useGameStore, useUIStore } from "../common/store";
+import { useGameStore, useUIStore } from "../store";
 import { WORLD_CONSTANTS } from "../common/world-constants";
 import React from "react";
 

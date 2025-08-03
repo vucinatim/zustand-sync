@@ -2,7 +2,7 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { produceWithPatches, enablePatches, type Patch } from "immer";
 import { EventEmitter } from "events";
-import { DEFAULT_SERVER_TICK_RATE } from "./factory";
+import { DEFAULT_SERVER_TICK_RATE } from "./factory.js";
 
 enablePatches();
 

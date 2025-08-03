@@ -1,1 +1,1 @@
-export { createServer, type ServerConfig } from "./factory";
+export { createServer, type ServerConfig } from "./factory.js";
