@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:packages": "tsc -b packages/core packages/client packages/server",
-    "build": "tsc -b packages/core packages/client packages/server apps/demo/tsconfig.server.json && pnpm --filter @zustand-sync/demo build:client",
+    "build": "tsc -b --force packages/core packages/client packages/server apps/demo/tsconfig.server.json && pnpm --filter @zustand-sync/demo build:client",
     "start": "pnpm --filter @zustand-sync/demo start",
     "dev": "pnpm --filter @zustand-sync/demo dev"
   },
