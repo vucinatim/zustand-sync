@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc -b apps/demo && pnpm --filter @zustand-sync/demo run build:client",
-    "start": "cd apps/demo && pnpm start",
+    "build:packages": "tsc -b packages/core packages/client packages/server",
+    "build": "pnpm run build:packages && pnpm --filter @zustand-sync/demo build",
+    "start": "pnpm --filter @zustand-sync/demo start",
     "dev": "pnpm --filter @zustand-sync/demo dev"
   },
   "pnpm": {
