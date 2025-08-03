@@ -12,6 +12,11 @@
     "composite": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@zustand-sync/*": ["packages/*/src"],
+      "@zustand-sync/core": ["packages/core"]
+    }
   }
 }
