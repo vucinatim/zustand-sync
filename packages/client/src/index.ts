@@ -15,6 +15,10 @@ export type FrameworkState = LocalState & {
 
 const DEFAULT_ROOM_ID = "default-room";
 
+export type SyncOptions = {
+  serverUrl?: string;
+};
+
 export const sync =
   <
     // THE FIX: The constraint is relaxed to only require an `actions` object.
@@ -23,7 +27,8 @@ export const sync =
     Mis extends [StoreMutatorIdentifier, unknown][] = [],
     Mos extends [StoreMutatorIdentifier, unknown][] = []
   >(
-    initializer: StateCreator<TState, Mis, Mos>
+    initializer: StateCreator<TState, Mis, Mos>,
+    options?: SyncOptions
   ): StateCreator<TState & FrameworkState, Mis, Mos> =>
   (set, get, store) => {
     // This flag ensures the auto-connect logic runs only once.
@@ -38,7 +43,7 @@ export const sync =
         get()._socket?.disconnect();
       }
 
-      const newSocket = io("http://localhost:3001");
+      const newSocket = io(options?.serverUrl || "http://localhost:3001");
       set({ _socket: newSocket, connectionStatus: "connecting" } as any);
 
       newSocket.on("connect", () => {

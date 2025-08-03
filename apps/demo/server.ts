@@ -1,145 +1,25 @@
-// src/server/server.ts (REVISED)
-
 import { createServer } from "@zustand-sync/server";
-import { gameStoreInitializer } from "./src/common/store";
-import { PLATFORMS } from "./src/common/world-constants";
-
-// Helper functions for enemy AI
-function isAtTarget(
-  pos: { x: number; y: number },
-  target: { x: number; y: number }
-): boolean {
-  const distance = Math.sqrt((pos.x - target.x) ** 2 + (pos.y - target.y) ** 2);
-  return distance < 10; // Within 10 pixels
-}
-
-function moveTowards(
-  pos: { x: number; y: number },
-  target: { x: number; y: number }
-): { x: number; y: number } {
-  const dx = target.x - pos.x;
-  const dy = target.y - pos.y;
-  const distance = Math.sqrt(dx ** 2 + dy ** 2);
-
-  if (distance === 0) return pos;
-
-  const speed = 2; // pixels per tick
-  const moveX = (dx / distance) * speed;
-  const moveY = (dy / distance) * speed;
-
-  return {
-    x: pos.x + moveX,
-    y: pos.y + moveY,
-  };
-}
-
-// Helper function for platform movement
-function calculatePlatformPosition(
-  platform: {
-    x: number;
-    moveSpeed?: number;
-    moveRange?: number;
-  },
-  time: number
-) {
-  if (!platform.moveSpeed || !platform.moveRange) {
-    return platform.x;
-  }
-
-  const centerX = platform.x;
-  const offset =
-    Math.sin(time * platform.moveSpeed * 0.001) * platform.moveRange;
-
-  return centerX + offset;
-}
+// --- MODIFIED IMPORT ---
+// Import the pure logic, NOT the client-side store.
+import { gameStoreInitializer } from "./src/common/initializer";
 
 // 3. Configure the server with the new generic tick system!
+let lastTickTime = Date.now();
+
 const { server } = createServer({
   initializer: gameStoreInitializer,
 
   // NEW: Provide a custom function for all server-side loop logic.
   serverTick: (storeController) => {
-    // This function is the new home for our AI logic.
-    const state = storeController.getState();
-    const currentTime = Date.now();
+    const now = Date.now();
+    const deltaTime = (now - lastTickTime) / 1000; // deltaTime in seconds
+    lastTickTime = now;
 
-    // Initialize platforms if they don't exist
-    if (!state.platforms || state.platforms.length === 0) {
-      const platformData = PLATFORMS.map((platform, index) => ({
-        id: `platform-${index}`,
-        x: platform.x,
-        y: platform.y,
-        width: platform.width,
-        height: platform.height,
-        color: platform.color,
-        moveSpeed: platform.moveSpeed,
-        moveRange: platform.moveRange,
-        moveOffset: platform.moveOffset,
-        currentX: platform.x,
-      }));
+    // Update server time first
+    storeController.dispatchSync("updateServerTime", [now], "server");
 
-      // Add platforms to the store
-      platformData.forEach((platform) => {
-        storeController.dispatchSync("addPlatform", [platform], "server");
-      });
-    }
-
-    // Update moving platforms
-    if (state.platforms && state.platforms.length > 0) {
-      for (const platform of state.platforms) {
-        if (platform.moveSpeed && platform.moveRange) {
-          const newX = calculatePlatformPosition(platform, currentTime);
-          if (Math.abs(platform.currentX - newX) > 0.1) {
-            storeController.dispatchSync(
-              "updatePlatformPosition",
-              [platform.id, newX],
-              "server"
-            );
-          }
-        }
-      }
-    }
-
-    // Spawn enemies at random positions
-    if (state.enemies.length < 3) {
-      const enemyId = `enemy-${Date.now()}`;
-      const spawnX = 800 + Math.random() * 400; // Center in world (800-1200 range)
-      const spawnY = 2800 + Math.random() * 200; // Near ground level
-      storeController.dispatchSync(
-        "spawnEnemy",
-        [enemyId, { x: spawnX, y: spawnY }, "patrol"],
-        "server"
-      );
-    }
-
-    if (!state.enemies || state.enemies.length === 0) {
-      return;
-    }
-
-    for (const enemy of state.enemies) {
-      // Simple "patrol" AI logic
-      if (
-        !enemy.patrolTarget ||
-        isAtTarget(enemy.position, enemy.patrolTarget)
-      ) {
-        const newTarget = {
-          x: enemy.position.x + (Math.random() - 0.5) * 200,
-          y: enemy.position.y,
-        };
-        storeController.dispatchSync(
-          "updateEnemyState",
-          [enemy.id, { patrolTarget: newTarget }],
-          "server"
-        );
-      } else {
-        const newPosition = moveTowards(enemy.position, enemy.patrolTarget);
-        storeController.dispatchSync(
-          "updateEnemyState",
-          [enemy.id, { position: newPosition }],
-          "server"
-        );
-      }
-    }
+    // The server's only job is to call the isomorphic tick function
+    storeController.dispatchSync("tick", [deltaTime], "server");
   },
 
   // Optional: Configure the tick rate in milliseconds.
