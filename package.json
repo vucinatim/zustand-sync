@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:packages": "tsc -b packages/core packages/client packages/server",
-    "build": "tsc -b tsconfig.build.json && pnpm --filter @zustand-sync/demo build:client",
+    "build": "echo '--- BUILDING CORE ---' && cd packages/core && pnpm build && cd ../.. && echo '--- CORE BUILD COMPLETE. LISTING FILES ---' && ls -R && echo '--- BUILDING CLIENT ---' && cd packages/client && pnpm build && cd ../.. && echo '--- CLIENT BUILD COMPLETE. LISTING FILES ---' && ls -R && echo '--- BUILDING SERVER ---' && cd packages/server && pnpm build && cd ../.. && echo '--- SERVER BUILD COMPLETE. LISTING FILES ---' && ls -R && echo '--- BUILDING DEMO APP ---' && pnpm --filter @zustand-sync/demo build",
     "start": "pnpm --filter @zustand-sync/demo start",
     "dev": "pnpm --filter @zustand-sync/demo dev"
   },
